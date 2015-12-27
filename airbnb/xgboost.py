@@ -86,19 +86,35 @@ def add_stat(x):
     return x
 
 # по каждому юзеру заполним статистикой по полу и возрасту для всех стран
-# import os
-# if os.path.exists('all_with_country_stat.csv'):
-#     df_all = pd.read_csv('all_with_country_stat.csv')
-# else:
-#     for c in age_gender_bkts.country_destination.unique():
-#         df_all[c + '_stat'] = -1
-#         df_all = df_all.apply(add_stat, axis=1)
-#     df_all.to_csv('all_with_country_stat.csv', index=False)
+import os
+if os.path.exists('all_with_country_stat.csv'):
+    df_all = pd.read_csv('all_with_country_stat.csv')
+else:
+    for c in age_gender_bkts.country_destination.unique():
+        df_all[c + '_stat'] = -1
+        df_all = df_all.apply(add_stat, axis=1)
+    df_all.to_csv('all_with_country_stat.csv', index=False)
 
-# добавим еще признаков для стран
-for c in countries.country_destination.values:
-    df_all['distance_'+c] = round(countries.distance_km[countries['country_destination'] == c] / 1000)
-    df_all['levenshtein_'+c] = round(countries.language_levenshtein_distance[countries['country_destination'] == c] / 100)
+# добавим еще языковой признак для стран
+df_all['lang_dist'] = 0
+def add_language_d(x):
+    if x['language'] == 'en':
+        x['lang_dist'] = 1
+    if x['language'] == 'de':
+        x['lang_dist'] = 0.27
+    if x['language'] == 'es':
+        x['lang_dist'] = 0.08
+    if x['language'] == 'fr':
+        x['lang_dist'] = 0.08
+    if x['language'] == 'it':
+        x['lang_dist'] = 0.11
+    if x['language'] == 'nl':
+        x['lang_dist'] = 0.37
+    if x['language'] == 'pt':
+        x['lang_dist'] = 0.05
+    return x
+
+df_all = df_all.apply(add_language_d, axis=1)
 
 # признак что пользуется apple
 df_all['mac_user'] = 0
@@ -120,7 +136,7 @@ def func(x):
                                                  "%d/%m/%Y").timetuple())
     return round((dac-tfa) / 86400)
 
-df_all.insert(1, 'diff_dac_tfa', df_all.apply(func , axis=1)) 
+# df_all.insert(1, 'diff_dac_tfa', df_all.apply(func , axis=1)) 
 
 def add_session_event(df, field, value):
     df['user_id'] = df.id
@@ -185,7 +201,7 @@ df_all = add_rel_session_time(df_all, 'action_detail', 'view_search_results')
 df_all = df_all.drop(['id'], axis=1)
 df_all.shape
 
-df_all = df_all.drop(['first_affiliate_tracked', 'first_browser'], axis=1)
+# df_all = df_all.drop(['first_affiliate_tracked', 'first_browser'], axis=1)
 
 #One-hot-encoding features
 ohe_feats = ['gender', 'signup_method', 'signup_flow', 'language', 'affiliate_channel',
@@ -304,7 +320,9 @@ def model_score(model, train, target, metric=True):
 # XGBClassifier: 0.832640145373 удалил 'first_affiliate_tracked', 'first_browser'
 # XGBClassifier: 0.832587501259 удалил 'first_affiliate_tracked', 'first_browser', 'affiliate_provider'
 # XGBClassifier: 0.832832770289 удалил 'first_affiliate_tracked', 'first_browser' + mac_user
-# XGBClassifier: 0.832828335352 без статы по странам, удалил 'first_affiliate_tracked', 'first_browser'
+# XGBClassifier: 0.832828335352 0.87808 без статы по странам, удалил 'first_affiliate_tracked', 'first_browser'
+# XGBClassifier: 0.832593609128 добавил расстояние языка
+# XGBClassifier: 0.832739285371 добавил расстояние языка, убрал diff
 
 print 'XGBClassifier:', model_score(xgb, X, y)
 # print 'MLPClassifier:', model_score(clf, X, y, False)
@@ -341,6 +359,6 @@ if submit:
         cts += le.inverse_transform(np.argsort(y_pred[i])[::-1])[:5].tolist()
 
     sub = pd.DataFrame(np.column_stack((ids, cts)), columns=['id', 'country'])
-    sub.to_csv('sub_wo_ff_mu.csv',index=False)
+    sub.to_csv('sub_wo_ff_sc.csv',index=False)
 
 
