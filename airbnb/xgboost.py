@@ -87,13 +87,27 @@ def add_stat(x):
 
 # по каждому юзеру заполним статистикой по полу и возрасту для всех стран
 import os
-if os.path.exists('all_with_country_stat.csv'):
-    df_all = pd.read_csv('all_with_country_stat.csv')
-else:
-    for c in age_gender_bkts.country_destination.unique():
-        df_all[c + '_stat'] = -1
-        df_all = df_all.apply(add_stat, axis=1)
-    df_all.to_csv('all_with_country_stat.csv', index=False)
+# if os.path.exists('all_with_country_stat.csv'):
+#     df_all = pd.read_csv('all_with_country_stat.csv')
+# else:
+#     for c in age_gender_bkts.country_destination.unique():
+#         df_all[c + '_stat'] = -1
+#     df_all = df_all.apply(add_stat, axis=1)
+#     df_all.to_csv('all_with_country_stat.csv', index=False)
+
+# for c_value in age_gender_bkts.country_destination.unique():
+#     val = age_gender_bkts.population_in_thousands[(age_gender_bkts['age_bucket'] == '25-29') & 
+#                                                   (age_gender_bkts['country_destination'] == c_value) & 
+#                                                   (age_gender_bkts['gender'] == 'male')]
+#     if val.count() == 1: 
+#         t = np.sum(age_gender_bkts.population_in_thousands[(age_gender_bkts['age_bucket'] == '25-29') & 
+#                                                            (age_gender_bkts['gender'] == 'male')])
+#         df_all[c_value + '_stat'][df_all['age'] == -1] = round(int(val) / t, 2)
+
+
+
+# возраст заменим средним
+# df_all.age[df_all['age'] == -1] = df_all.age.mean()
 
 # добавим еще языковой признак для стран
 df_all['lang_dist'] = 0
@@ -201,7 +215,7 @@ df_all = add_rel_session_time(df_all, 'action_detail', 'view_search_results')
 df_all = df_all.drop(['id'], axis=1)
 df_all.shape
 
-# df_all = df_all.drop(['first_affiliate_tracked', 'first_browser'], axis=1)
+df_all = df_all.drop(['language'], axis=1)
 
 #One-hot-encoding features
 ohe_feats = ['gender', 'signup_method', 'signup_flow', 'language', 'affiliate_channel',
@@ -224,7 +238,7 @@ X_test = vals[piv_train:]
 
 # missing=-1,
 
-xgb = XGBClassifier(max_depth=6, learning_rate=0.3, n_estimators=25, nthread=-1, missing=-1,
+xgb = XGBClassifier(max_depth=6, learning_rate=0.3, n_estimators=25, nthread=-1,
                     objective='multi:softprob', subsample=1, colsample_bytree=0.5, seed=0)                  
 
 # algorithm='l-bfgs', alpha=1e-5, hidden_layer_sizes=(5,2), random_state=0
@@ -323,6 +337,7 @@ def model_score(model, train, target, metric=True):
 # XGBClassifier: 0.832828335352 0.87808 без статы по странам, удалил 'first_affiliate_tracked', 'first_browser'
 # XGBClassifier: 0.832593609128 добавил расстояние языка
 # XGBClassifier: 0.832739285371 добавил расстояние языка, убрал diff
+# XGBClassifier: 0.83265603981
 
 print 'XGBClassifier:', model_score(xgb, X, y)
 # print 'MLPClassifier:', model_score(clf, X, y, False)
