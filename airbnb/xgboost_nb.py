@@ -255,7 +255,26 @@ for f in ohe_feats:
         df_all = df_all.drop([f], axis=1)
         df_all = pd.concat((df_all, df_all_dummy), axis=1)
 
+df_all = df_all[df_all['country_destination'] != 'AU']
+df_train = df_train[df_train['country_destination'] != 'AU']
 
+df_all = df_all[df_all['country_destination'] != 'PT']
+df_train = df_train[df_train['country_destination'] != 'PT']
+
+df_all = df_all[df_all['country_destination'] != 'NL']
+df_train = df_train[df_train['country_destination'] != 'NL']
+
+df_all = df_all[df_all['country_destination'] != 'DE']
+df_train = df_train[df_train['country_destination'] != 'DE']
+
+df_all = df_all[df_all['country_destination'] != 'CA']
+df_train = df_train[df_train['country_destination'] != 'CA']
+
+df_all = df_all[df_all['country_destination'] != 'ES']
+df_train = df_train[df_train['country_destination'] != 'ES']
+
+df_all = df_all[df_all['country_destination'] != 'GB']
+df_train = df_train[df_train['country_destination'] != 'GB']
 
 labels = df_train['country_destination'].values
 id_test = df_test['id']
@@ -280,8 +299,8 @@ vals = df_all.values
 X = vals[:piv_train]
 
 #########
-# X  = np.append(X, all_AU.repeat(5, axis=0), axis=0)
-# labels = np.append(labels, 5*len(all_AU)*['AU'])
+# X  = np.append(X, all_AU.repeat(1, axis=0), axis=0)
+# labels = np.append(labels, 1*len(all_AU)*['AU'])
 
 # X  = np.append(X, all_CA.repeat(5, axis=0), axis=0)
 # labels = np.append(labels, 5*len(all_CA)*['CA'])
@@ -361,9 +380,10 @@ def score_predictions(preds, truth, n_modes=5):
     """
     assert(len(preds)==len(truth))
     r = pd.DataFrame(0, index=preds.index, columns=preds.columns, dtype=np.float64)
+    found = False
     for col in preds.columns:
         r[col] = (preds[col] == truth) * 1.0
-
+        
     score = pd.Series(r.apply(ndcg_at_k, axis=1, reduce=True), name='score')
     return score
 
@@ -375,8 +395,8 @@ def _score(ROCtestTRN, ROCtestTRG, probas):
     preds = pd.DataFrame(cts)
     truth = pd.Series(ROCtestTRG)
     
-    preds.to_csv('preds.csv', header=False)
-    truth.to_csv('truth.csv', header=False)
+    preds.to_csv('preds_AU.csv', header=False)
+    truth.to_csv('truth_AU.csv', header=False)
     
     s = score_predictions(preds, truth)
     return np.sum(s) / len(s)
@@ -505,6 +525,7 @@ def predict_stacking(train, target, X_submission):
 # XGBClassifier: 0.83265603981 0.87869
 # XGBClassifier: 0.833045826683 0.87800 c новыми данными по сессиям
 
+# XGBClassifier: 0.86813210501 без сложных стран
 
 print 'XGBClassifier:', model_score(xgb, X, y, False)
 # print 'MLPClassifier:', model_score(clf, X, y, False)
@@ -547,8 +568,8 @@ if submit:
     xgb.fit(X, y)
     y_pred = xgb.predict_proba(X_test)
 #     y_pred = predict_stacking(X, y, X_test)
-    save(y_pred, 'new_session_data_1.csv')
+    save(y_pred, 'new_session_data_wo_c.csv')
 
-le.classes_
+
 
 
