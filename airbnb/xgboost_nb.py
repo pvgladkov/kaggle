@@ -24,14 +24,14 @@ sessions = pd.read_csv('sessions.csv')
 age_gender_bkts = pd.read_csv('age_gender_bkts.csv')
 countries = pd.read_csv('countries.csv')
 
+len_df_test = df_test.shape[0]
+
 df_test['country_destination'] = '--'
 
 #Creating a DataFrame with train+test data
 df_all = pd.concat((df_train, df_test), axis=0, ignore_index=True)
 #Removing id and date_first_booking
 df_all = df_all.drop(['date_first_booking'], axis=1)
-#Filling nan
-df_all = df_all.fillna(-1)
 
 #date_account_created
 dac = np.vstack(df_all.date_account_created.astype(str).apply(lambda x: list(map(int, x.split('-')))).values)
@@ -86,14 +86,14 @@ def add_stat(x):
 # по каждому юзеру заполним статистикой по полу и возрасту для всех стран
 import os
 
-filename = 'all_with_country_stat_new_2.csv'
-if os.path.exists(filename):
-    df_all = pd.read_csv(filename)
-else:
-    for c in age_gender_bkts.country_destination.unique():
-        df_all[c + '_stat'] = -1
-    df_all = df_all.apply(add_stat, axis=1)
-    df_all.to_csv(filename, index=False)
+# filename = 'all_with_country_stat_new_2.csv'
+# if os.path.exists(filename):
+#     df_all = pd.read_csv(filename)
+# else:
+#     for c in age_gender_bkts.country_destination.unique():
+#         df_all[c + '_stat'] = -1
+#     df_all = df_all.apply(add_stat, axis=1)
+#     df_all.to_csv(filename, index=False)
 
 # for c_value in age_gender_bkts.country_destination.unique():
 #     val = age_gender_bkts.population_in_thousands[(age_gender_bkts['age_bucket'] == '25-29') & 
@@ -104,31 +104,38 @@ else:
 #                                                            (age_gender_bkts['gender'] == 'male')])
 #         df_all[c_value + '_stat'][df_all['age'] == -1] = round(int(val) / t, 2)
 
+# df_train = df_train[(df_train['country_destination'] != 'NDF') | (df_train.index % 6 > 0)]
+df_train = df_train[((df_train['country_destination']=='--')) | 
+                    ((df_train['country_destination']!='NDF')&(df_train['age']>0)&(df_train['gender']!='-unknown-')) | 
+                    ((df_train['country_destination'] == 'NDF'))]
 
+df_all = df_all[((df_all['country_destination']=='--')) | 
+                ((df_all['country_destination']!='NDF')&(df_all['age']>0)&(df_all['gender']!='-unknown-')) | 
+                ((df_all['country_destination'] == 'NDF'))]
 
 # возраст заменим средним
 # df_all.age[df_all['age'] > 150] = 26
 
 # добавим еще языковой признак для стран
-# df_all['lang_dist'] = 0
-# def add_language_d(x):
-#     if x['language'] == 'en':
-#         x['lang_dist'] = 1
-#     if x['language'] == 'de':
-#         x['lang_dist'] = 0.27
-#     if x['language'] == 'es':
-#         x['lang_dist'] = 0.08
-#     if x['language'] == 'fr':
-#         x['lang_dist'] = 0.08
-#     if x['language'] == 'it':
-#         x['lang_dist'] = 0.11
-#     if x['language'] == 'nl':
-#         x['lang_dist'] = 0.37
-#     if x['language'] == 'pt':
-#         x['lang_dist'] = 0.05
-#     return x
+df_all['lang_dist'] = 0
+def add_language_d(x):
+    if x['language'] == 'en':
+        x['lang_dist'] = 1
+    if x['language'] == 'de':
+        x['lang_dist'] = 0.27
+    if x['language'] == 'es':
+        x['lang_dist'] = 0.08
+    if x['language'] == 'fr':
+        x['lang_dist'] = 0.08
+    if x['language'] == 'it':
+        x['lang_dist'] = 0.11
+    if x['language'] == 'nl':
+        x['lang_dist'] = 0.37
+    if x['language'] == 'pt':
+        x['lang_dist'] = 0.05
+    return x
 
-# df_all = df_all.apply(add_language_d, axis=1)
+df_all = df_all.apply(add_language_d, axis=1)
 
 # признак что пользуется apple
 df_all['mac_user'] = 0
@@ -237,14 +244,14 @@ df_all = add_session_event(df_all, 'action_detail', 'your_trips')
 
 df_all = add_rel_session_time(df_all, 'action_detail', 'view_search_results')
 
-df_all = add_ag_session_data(df_all)
+# df_all = add_ag_session_data(df_all)
 
 
 
 df_all = df_all.drop(['id'], axis=1)
 df_all.shape
 
-
+df_all[df_all['country_destination'] == 'IT'].to_csv('IT.csv')
 
 #One-hot-encoding features
 ohe_feats = ['gender', 'signup_method', 'signup_flow', 'language', 'affiliate_channel',
@@ -275,6 +282,8 @@ df_train = df_train[df_train['country_destination'] != 'ES']
 
 df_all = df_all[df_all['country_destination'] != 'GB']
 df_train = df_train[df_train['country_destination'] != 'GB']
+
+
 
 labels = df_train['country_destination'].values
 id_test = df_test['id']
@@ -349,6 +358,8 @@ nnc = MLPClassifier(random_state=0, max_iter=1000)
 
 gbc = GradientBoostingClassifier(n_estimators=100, learning_rate=1.0, max_depth=1, random_state=0)
 
+bgc = BaggingClassifier(base_estimator=xgb)
+
 from sklearn.cross_validation import StratifiedKFold
 
 def dcg_at_k(r, k, method=1):
@@ -419,11 +430,11 @@ CLSF = [RandomForestClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterio
         ExtraTreesClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='entropy'),
         #KNeighborsClassifier(n_jobs=-1),
         XGBClassifier(max_depth=6, learning_rate=0.3, n_estimators=25, nthread=-1,
-                      objective='multi:softprob', subsample=1, colsample_bytree=0.5, seed=0)
+                      objective='multi:softprob', subsample=1, colsample_bytree=0.5, seed=0),
         #MLPClassifier(random_state=0, max_iter=1000)
         ]
 
-N_FOLDS = 10
+N_FOLDS = 3
 
 def dataset_blend(X, y, X_submission, n_folds):
     """ 
@@ -526,6 +537,7 @@ def predict_stacking(train, target, X_submission):
 # XGBClassifier: 0.833045826683 0.87800 c новыми данными по сессиям
 
 # XGBClassifier: 0.86813210501 без сложных стран
+# XGBClassifier: 0.900100721605 0.86890 c доп фильтрацией
 
 print 'XGBClassifier:', model_score(xgb, X, y, False)
 # print 'MLPClassifier:', model_score(clf, X, y, False)
@@ -562,14 +574,18 @@ def save(y_pred, name):
     sub = pd.DataFrame(np.column_stack((ids, cts)), columns=['id', 'country'])
     sub.to_csv(name,index=False)  
 
+assert(len(X_test) == len_df_test)
+
 if submit:
     xgb = XGBClassifier(max_depth=6, learning_rate=0.3, n_estimators=25, nthread=-1,
                         objective='multi:softprob', subsample=1, colsample_bytree=0.5, seed=0)
+    
+#     bgc = BaggingClassifier(base_estimator=xgb)
     xgb.fit(X, y)
     y_pred = xgb.predict_proba(X_test)
 #     y_pred = predict_stacking(X, y, X_test)
-    save(y_pred, 'new_session_data_wo_c.csv')
+    save(y_pred, 'wo_c_filter_data.csv')
 
-
+le.classes_
 
 
