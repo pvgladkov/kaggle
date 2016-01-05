@@ -363,7 +363,17 @@ gbc = GradientBoostingClassifier(n_estimators=100, learning_rate=1.0, max_depth=
 
 bgc = BaggingClassifier(base_estimator=fxgb())
 
-from sklearn.cross_validation import StratifiedKFold
+FCLSF = lambda: [RandomForestClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='gini'),
+                 RandomForestClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='entropy'),
+                 ExtraTreesClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='gini'),
+                 ExtraTreesClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='entropy')
+        #KNeighborsClassifier(n_jobs=-1),
+#         XGBClassifier(max_depth=6, learning_rate=0.3, n_estimators=25, nthread=-1,
+#                       objective='multi:softprob', subsample=1, colsample_bytree=0.5, seed=0),
+        #MLPClassifier(random_state=0, max_iter=1000)
+        ]
+
+from sklearn.cross_validation import StratifiedKFold, ShuffleSplit
 
 def dcg_at_k(r, k, method=1):
     r = np.asfarray(r)[:k]
@@ -416,39 +426,45 @@ def _score(ROCtestTRN, ROCtestTRG, probas):
     return np.sum(s) / len(s)
     
 
-def model_score(model, train, target, metric=True):
+def model_score(model_name, train, target, metric=True):
     
-    ROCtrainTRN, ROCtestTRN, ROCtrainTRG, ROCtestTRG = cross_validation.train_test_split(train, target, test_size=0.2)
-    
-    if metric:
-        probas = model.fit(ROCtrainTRN, ROCtrainTRG, eval_metric='ndcg@5').predict_proba(ROCtestTRN)
+    if model_name == 'xgb':
+        model = fxgb()
     else:
-        probas = model.fit(ROCtrainTRN, ROCtrainTRG).predict_proba(ROCtestTRN)
+        raise Exception('invalid model')
     
-    return _score(ROCtestTRN, ROCtestTRG, probas)
+    skf = ShuffleSplit(target.shape[0], n_iter=3, test_size=0.2, random_state=0)
+    scores = []
+    
+    for train_index, test_index in skf:
+        ROCtrainTRN, ROCtestTRN = train[train_index], train[test_index]
+        ROCtrainTRG, ROCtestTRG = target[train_index], target[test_index]
+        if metric:
+            model.fit(ROCtrainTRN, ROCtrainTRG, eval_metric='ndcg@5')
+        else:
+            model.fit(ROCtrainTRN, ROCtrainTRG)
 
-CLSF = [RandomForestClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='gini'),
-        RandomForestClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='entropy'),
-        ExtraTreesClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='gini'),
-        ExtraTreesClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='entropy')
-        #KNeighborsClassifier(n_jobs=-1),
-#         XGBClassifier(max_depth=6, learning_rate=0.3, n_estimators=25, nthread=-1,
-#                       objective='multi:softprob', subsample=1, colsample_bytree=0.5, seed=0),
-        #MLPClassifier(random_state=0, max_iter=1000)
-        ]
+        probas = model.predict_proba(ROCtestTRN)
+        s = _score(ROCtestTRN, ROCtestTRG, probas)
+        print s
+        scores.append(s)
+        
+    return np.array(scores).mean()
 
-N_FOLDS = 10
+N_FOLDS = 2
 
 def dataset_blend(X, y, X_submission, n_folds):
     """ 
     получить датасет
     """
     skf = list(StratifiedKFold(y, n_folds))
+    
+    clsf = FCLSF()
+    
+    dataset_blend_train = np.zeros((X.shape[0], len(clsf)))
+    dataset_blend_test = np.zeros((X_submission.shape[0], len(clsf)))
 
-    dataset_blend_train = np.zeros((X.shape[0], len(CLSF)))
-    dataset_blend_test = np.zeros((X_submission.shape[0], len(CLSF)))
-
-    for j, clf in enumerate(CLSF):
+    for j, clf in enumerate(clsf):
         print j, clf
         dataset_blend_test_j = np.zeros((X_submission.shape[0], len(skf)))
         for i, (train, test) in enumerate(skf):
@@ -479,15 +495,26 @@ def score_stacking(train, target):
     результат модели
     """
     n_folds = N_FOLDS
-    ROCtrainTRN, ROCtestTRN, ROCtrainTRG, ROCtestTRG = cross_validation.train_test_split(train, target, test_size=0.2)
-    X = ROCtrainTRN
-    y = ROCtrainTRG
-    X_submission = ROCtestTRN
-
-    dataset_blend_train, dataset_blend_test = dataset_blend(X, y, X_submission, n_folds)
-    probas = blending(dataset_blend_train, dataset_blend_test, y)
     
-    return _score(ROCtestTRN, ROCtestTRG, probas)
+    # кросс-валидация на нескольких сэмплах
+    skf = ShuffleSplit(target.shape[0], n_iter=3, test_size=0.2, random_state=0)
+    scores = []
+    
+    for train_index, test_index in skf:
+        ROCtrainTRN, ROCtestTRN = train[train_index], train[test_index]
+        ROCtrainTRG, ROCtestTRG = target[train_index], target[test_index]
+        X = ROCtrainTRN
+        y = ROCtrainTRG
+        X_submission = ROCtestTRN
+
+        dataset_blend_train, dataset_blend_test = dataset_blend(X, y, X_submission, n_folds)
+        probas = blending(dataset_blend_train, dataset_blend_test, y)
+    
+        s = _score(ROCtestTRN, ROCtestTRG, probas)
+        print s
+        scores.append(s)
+        
+    return np.array(scores).mean()
 
 def predict_stacking(train, target, X_submission):
     """
@@ -545,7 +572,7 @@ def predict_stacking(train, target, X_submission):
 # XGBClassifier: 0.86813210501 0.87892 без сложных стран
 # XGBClassifier: 0.900100721605 0.86890 c доп фильтрацией stacking 0.86481
 
-print 'XGBClassifier:', model_score(fxgb(), X, y, False)
+print 'XGBClassifier:', model_score('xgb', X, y, False)
 # print 'MLPClassifier:', model_score(clf, X, y, False)
 # print 'Stacking:', score_stacking(X, y)
 
