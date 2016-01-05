@@ -33,6 +33,9 @@ df_all = pd.concat((df_train, df_test), axis=0, ignore_index=True)
 #Removing id and date_first_booking
 df_all = df_all.drop(['date_first_booking'], axis=1)
 
+#Filling nan
+df_all = df_all.fillna(-1)
+
 #date_account_created
 dac = np.vstack(df_all.date_account_created.astype(str).apply(lambda x: list(map(int, x.split('-')))).values)
 df_all['dac_year'] = dac[:,0]
@@ -86,14 +89,14 @@ def add_stat(x):
 # по каждому юзеру заполним статистикой по полу и возрасту для всех стран
 import os
 
-# filename = 'all_with_country_stat_new_2.csv'
-# if os.path.exists(filename):
-#     df_all = pd.read_csv(filename)
-# else:
-#     for c in age_gender_bkts.country_destination.unique():
-#         df_all[c + '_stat'] = -1
-#     df_all = df_all.apply(add_stat, axis=1)
-#     df_all.to_csv(filename, index=False)
+filename = 'all_with_country_stat_new_2.csv'
+if os.path.exists(filename):
+    df_all = pd.read_csv(filename)
+else:
+    for c in age_gender_bkts.country_destination.unique():
+        df_all[c + '_stat'] = -1
+    df_all = df_all.apply(add_stat, axis=1)
+    df_all.to_csv(filename, index=False)
 
 # for c_value in age_gender_bkts.country_destination.unique():
 #     val = age_gender_bkts.population_in_thousands[(age_gender_bkts['age_bucket'] == '25-29') & 
@@ -105,13 +108,13 @@ import os
 #         df_all[c_value + '_stat'][df_all['age'] == -1] = round(int(val) / t, 2)
 
 # df_train = df_train[(df_train['country_destination'] != 'NDF') | (df_train.index % 6 > 0)]
-df_train = df_train[((df_train['country_destination']=='--')) | 
-                    ((df_train['country_destination']!='NDF')&(df_train['age']>0)&(df_train['gender']!='-unknown-')) | 
-                    ((df_train['country_destination'] == 'NDF'))]
+# df_train = df_train[((df_train['country_destination']=='--')) | 
+#                     ((df_train['country_destination']!='NDF')&(df_train['age']>0)&(df_train['gender']!='-unknown-')) | 
+#                     ((df_train['country_destination'] == 'NDF'))]
 
-df_all = df_all[((df_all['country_destination']=='--')) | 
-                ((df_all['country_destination']!='NDF')&(df_all['age']>0)&(df_all['gender']!='-unknown-')) | 
-                ((df_all['country_destination'] == 'NDF'))]
+# df_all = df_all[((df_all['country_destination']=='--')) | 
+#                 ((df_all['country_destination']!='NDF')&(df_all['age']>0)&(df_all['gender']!='-unknown-')) | 
+#                 ((df_all['country_destination'] == 'NDF'))]
 
 # возраст заменим средним
 # df_all.age[df_all['age'] > 150] = 26
@@ -350,15 +353,15 @@ X_test = vals[piv_train:]
 
 # missing=-1,
 
-xgb = XGBClassifier(max_depth=6, learning_rate=0.3, n_estimators=25, nthread=-1,
-                    objective='multi:softprob', subsample=1, colsample_bytree=0.5, seed=0)                  
+fxgb = lambda : XGBClassifier(max_depth=6, learning_rate=0.3, n_estimators=25, nthread=-1,
+                              objective='multi:softprob', subsample=1, colsample_bytree=0.5, seed=0)                  
 
 # algorithm='l-bfgs', alpha=1e-5, hidden_layer_sizes=(5,2), random_state=0
 nnc = MLPClassifier(random_state=0, max_iter=1000)
 
 gbc = GradientBoostingClassifier(n_estimators=100, learning_rate=1.0, max_depth=1, random_state=0)
 
-bgc = BaggingClassifier(base_estimator=xgb)
+bgc = BaggingClassifier(base_estimator=fxgb())
 
 from sklearn.cross_validation import StratifiedKFold
 
@@ -427,14 +430,14 @@ def model_score(model, train, target, metric=True):
 CLSF = [RandomForestClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='gini'),
         RandomForestClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='entropy'),
         ExtraTreesClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='gini'),
-        ExtraTreesClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='entropy'),
+        ExtraTreesClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='entropy')
         #KNeighborsClassifier(n_jobs=-1),
-        XGBClassifier(max_depth=6, learning_rate=0.3, n_estimators=25, nthread=-1,
-                      objective='multi:softprob', subsample=1, colsample_bytree=0.5, seed=0),
+#         XGBClassifier(max_depth=6, learning_rate=0.3, n_estimators=25, nthread=-1,
+#                       objective='multi:softprob', subsample=1, colsample_bytree=0.5, seed=0),
         #MLPClassifier(random_state=0, max_iter=1000)
         ]
 
-N_FOLDS = 3
+N_FOLDS = 10
 
 def dataset_blend(X, y, X_submission, n_folds):
     """ 
@@ -460,10 +463,13 @@ def dataset_blend(X, y, X_submission, n_folds):
             dataset_blend_test_j[:, i] = clf.predict_proba(X_submission)[:,1]
         dataset_blend_test[:,j] = dataset_blend_test_j.mean(1)
 
+    dataset_blend_train = np.append(X, dataset_blend_train, axis=1)
+    dataset_blend_test = np.append(X_submission, dataset_blend_test, axis=1)
+    
     return dataset_blend_train, dataset_blend_test
 
 def blending(train, test, target):
-    clf = LogisticRegression()
+    clf = fxgb()
     clf.fit(train, target)
     probas = clf.predict_proba(test)
     return probas
@@ -536,14 +542,14 @@ def predict_stacking(train, target, X_submission):
 # XGBClassifier: 0.83265603981 0.87869
 # XGBClassifier: 0.833045826683 0.87800 c новыми данными по сессиям
 
-# XGBClassifier: 0.86813210501 без сложных стран
-# XGBClassifier: 0.900100721605 0.86890 c доп фильтрацией
+# XGBClassifier: 0.86813210501 0.87892 без сложных стран
+# XGBClassifier: 0.900100721605 0.86890 c доп фильтрацией stacking 0.86481
 
-print 'XGBClassifier:', model_score(xgb, X, y, False)
+print 'XGBClassifier:', model_score(fxgb(), X, y, False)
 # print 'MLPClassifier:', model_score(clf, X, y, False)
 # print 'Stacking:', score_stacking(X, y)
 
-# print 'Stacking:', score_stacking(X, y)
+print 'Stacking:', score_stacking(X, y)
 
 # scores = []
 # for depth in range(4, 10, 1):
@@ -577,14 +583,13 @@ def save(y_pred, name):
 assert(len(X_test) == len_df_test)
 
 if submit:
-    xgb = XGBClassifier(max_depth=6, learning_rate=0.3, n_estimators=25, nthread=-1,
-                        objective='multi:softprob', subsample=1, colsample_bytree=0.5, seed=0)
+#     xgb = fxgb()
     
 #     bgc = BaggingClassifier(base_estimator=xgb)
-    xgb.fit(X, y)
-    y_pred = xgb.predict_proba(X_test)
-#     y_pred = predict_stacking(X, y, X_test)
-    save(y_pred, 'wo_c_filter_data.csv')
+#     xgb.fit(X, y)
+#     y_pred = xgb.predict_proba(X_test)
+    y_pred = predict_stacking(X, y, X_test)
+    save(y_pred, 'wo_c_filter_data_stacking.csv')
 
 le.classes_
 
