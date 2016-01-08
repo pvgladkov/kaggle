@@ -562,7 +562,7 @@ piv_train = df_train.shape[0]
 df_all = df_all.drop(['country_destination'], axis=1)
 
 #Splitting train and test
-vals = df_all.values
+vals = df_all
 X = vals[:piv_train]
 
 
@@ -599,7 +599,14 @@ FCLSF = lambda: [RandomForestClassifier(n_estimators=25, max_depth=6, n_jobs=-1,
                  RandomForestClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='entropy'),
                  ExtraTreesClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='gini'),
                  ExtraTreesClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='entropy'),
-                 fxgb()
+                 fxgb(),
+                 MLPClassifier(random_state=0, max_iter=1000),
+                 RandomForestClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='gini'),
+                 RandomForestClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='entropy'),
+                 ExtraTreesClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='gini'),
+                 ExtraTreesClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='entropy'),
+                 fxgb(),
+                 MLPClassifier(random_state=0, max_iter=1000)
         #KNeighborsClassifier(n_jobs=-1),
 
         #MLPClassifier(random_state=0, max_iter=1000)
@@ -688,11 +695,15 @@ def debug_probas(data, target, probas):
     df.to_csv('debug_info.csv')
     
 def model_score(model_name, train, target, metric=True):
-    
+    """
+    train: pd.DataFrame
+    """
     if model_name == 'xgb':
         model = fxgb()
     else:
         raise Exception('invalid model')
+    
+    train = train.values
     
     skf = ShuffleSplit(target.shape[0], n_iter=3, test_size=0.2, random_state=0)
     scores = []
@@ -719,35 +730,49 @@ def model_score(model_name, train, target, metric=True):
     return np.array(scores).mean() 
 
 
-# In[50]:
+# In[47]:
 
 N_FOLDS = 2
 
 def dataset_blend(X, y, X_submission, n_folds):
     """ 
     получить датасет
+    X: pd.DataFrame
+    X_submission: pd.DataFrame
     """
     skf = list(StratifiedKFold(y, n_folds))
     
     clsf = FCLSF()
     
+    X_vals = X.values
+    X_submission_vals = X_submission.values
+    
     dataset_blend_train = np.zeros((X.shape[0], len(clsf)))
     dataset_blend_test = np.zeros((X_submission.shape[0], len(clsf)))
 
     for j, clf in enumerate(clsf):
+        
         print j, clf
+        
+        # половину классификаторов обучим с признаком trip, половину без него
+        if j > 5:
+            X_vals = X.drop(['trip'], axis=1).values
+            X_submission_vals = X_submission.drop(['trip'], axis=1).values
+            print 'drop trip'
+        
         dataset_blend_test_j = np.zeros((X_submission.shape[0], len(skf)))
         for i, (train, test) in enumerate(skf):
             print "Fold", i
-            X_train = X[train]
+            X_train = X_vals[train]
             y_train = y[train]
-            X_test = X[test]
+            X_test = X_vals[test]
             y_test = y[test]
             clf.fit(X_train, y_train)
             y_submission = clf.predict_proba(X_test)[:,1]
             dataset_blend_train[test, j] = y_submission
-            dataset_blend_test_j[:, i] = clf.predict_proba(X_submission)[:,1]
+            dataset_blend_test_j[:, i] = clf.predict_proba(X_submission_vals)[:,1]
         dataset_blend_test[:,j] = dataset_blend_test_j.mean(1)
+        
 
 #     dataset_blend_train = np.append(X, dataset_blend_train, axis=1)
 #     dataset_blend_test = np.append(X_submission, dataset_blend_test, axis=1)
@@ -763,8 +788,12 @@ def blending(train, test, target):
 def score_stacking(train, target):
     """ 
     результат модели
+    train: pd.DataFrame
     """
     n_folds = N_FOLDS
+    
+    cols = train.columns
+    train = train.values
     
     # кросс-валидация на нескольких сэмплах
     skf = ShuffleSplit(target.shape[0], n_iter=3, test_size=0.2, random_state=0)
@@ -777,6 +806,11 @@ def score_stacking(train, target):
         y = ROCtrainTRG
         X_submission = ROCtestTRN
 
+        X = pd.DataFrame(X)
+        X.columns = cols
+        X_submission = pd.DataFrame(X_submission)
+        X_submission.columns = cols
+        
         dataset_blend_train, dataset_blend_test = dataset_blend(X, y, X_submission, n_folds)
         probas = blending(dataset_blend_train, dataset_blend_test, y)
     
@@ -789,6 +823,8 @@ def score_stacking(train, target):
 def predict_stacking(train, target, X_submission):
     """
     обучить на полном датасете и предсказать
+    train: pd.DataFrame
+    X_submission: pd.DataFrame
     """
     n_folds = N_FOLDS
     dataset_blend_train, dataset_blend_test = dataset_blend(train, target, X_submission, n_folds)
@@ -849,17 +885,19 @@ def predict_stacking(train, target, X_submission):
 
 # XGBClassifier: 0.867390630916 0.87863 c новыми фичами
 
+# super stacking 0.87270
+
 print 'XGBClassifier:', model_score('xgb', X, y, False)
 # print 'MLPClassifier:', model_score(clf, X, y, False)
 # print 'Stacking:', score_stacking(X, y)
 
 
-# In[51]:
+# In[49]:
 
 print 'Stacking:', score_stacking(X, y)
 
 
-# In[ ]:
+# In[50]:
 
 # scores = []
 # for depth in range(4, 10, 1):
@@ -873,14 +911,14 @@ print 'Stacking:', score_stacking(X, y)
 #         print depth, l_rate
 
 
-# In[ ]:
+# In[51]:
 
 # scores.sort(key=lambda x: x['score'])
 # for it in scores:
 #     print it
 
 
-# In[ ]:
+# In[52]:
 
 # scores_df = pd.DataFrame(scores)
 # scores_df.to_csv('scores.csv')
@@ -888,7 +926,7 @@ print 'Stacking:', score_stacking(X, y)
 
 # ### Обучение и сохранение результатов
 
-# In[ ]:
+# In[53]:
 
 def save(y_pred, name):
     ids = []  #list of ids
@@ -908,23 +946,23 @@ def save(y_pred, name):
 
 
 
-# In[ ]:
+# In[54]:
 
 assert(len(X_test) == len_df_test)
 
 
-# In[ ]:
+# In[57]:
 
-if submit:
+if True:
 #     xgb = fxgb()
 #     bgc = BaggingClassifier(base_estimator=xgb)
-    xgb.fit(X, y)
+#     xgb.fit(X, y)
 #     y_pred = xgb.predict_proba(X_test)
     y_pred = predict_stacking(X, y, X_test)
-    save(y_pred, 'trip_pred_all_c.csv')
+    save(y_pred, 'stack_trip.csv')
 
 
-# In[ ]:
+# In[56]:
 
 le.classes_
 
