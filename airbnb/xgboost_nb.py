@@ -1,5 +1,12 @@
 
+# coding: utf-8
+
+# In[1]:
+
 submit = False
+
+
+# In[2]:
 
 import numpy as np
 import pandas as pd
@@ -9,11 +16,17 @@ from sklearn import cross_validation
 import time
 import datetime
 
+
+# In[3]:
+
 from sklearn.ensemble import BaggingClassifier, RandomForestClassifier, ExtraTreesClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression, LinearRegression
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.neural_network import MLPClassifier
 from xgboost.sklearn import XGBClassifier
+
+
+# In[4]:
 
 np.random.seed(0)
 
@@ -24,7 +37,15 @@ sessions = pd.read_csv('sessions.csv')
 age_gender_bkts = pd.read_csv('age_gender_bkts.csv')
 countries = pd.read_csv('countries.csv')
 
+
+# In[5]:
+
 len_df_test = df_test.shape[0]
+
+
+# ### Подготовка данных
+
+# In[6]:
 
 df_test['country_destination'] = '--'
 
@@ -36,6 +57,9 @@ df_all = df_all.drop(['date_first_booking'], axis=1)
 #Filling nan
 df_all = df_all.fillna(-1)
 
+
+# In[7]:
+
 #date_account_created
 dac = np.vstack(df_all.date_account_created.astype(str).apply(lambda x: list(map(int, x.split('-')))).values)
 df_all['dac_year'] = dac[:,0]
@@ -44,8 +68,7 @@ df_all['dac_day'] = dac[:,2]
 df_all = df_all.drop(['date_account_created'], axis=1)
 
 #timestamp_first_active
-tfa = np.vstack(df_all.timestamp_first_active.astype(str)\
-                .apply(lambda x: list(map(int, [x[:4],x[4:6],x[6:8],x[8:10],x[10:12],x[12:14]]))).values)
+tfa = np.vstack(df_all.timestamp_first_active.astype(str)                .apply(lambda x: list(map(int, [x[:4],x[4:6],x[6:8],x[8:10],x[10:12],x[12:14]]))).values)
 df_all['tfa_year'] = tfa[:,0]
 df_all['tfa_month'] = tfa[:,1]
 df_all['tfa_day'] = tfa[:,2]
@@ -58,6 +81,12 @@ df_all = df_all.drop(['timestamp_first_active'], axis=1)
 # df_all.loc[df_all.age > 100, 'age'] = 100
 
 
+# In[ ]:
+
+
+
+
+# In[8]:
 
 def add_stat(x):
     if x['age'] == -1:
@@ -86,6 +115,11 @@ def add_stat(x):
 
     return x
 
+
+# #### кэширование!!!
+
+# In[9]:
+
 # по каждому юзеру заполним статистикой по полу и возрасту для всех стран
 import os
 
@@ -98,6 +132,9 @@ else:
     df_all = df_all.apply(add_stat, axis=1)
     df_all.to_csv(filename, index=False)
 
+
+# In[10]:
+
 # for c_value in age_gender_bkts.country_destination.unique():
 #     val = age_gender_bkts.population_in_thousands[(age_gender_bkts['age_bucket'] == '25-29') & 
 #                                                   (age_gender_bkts['country_destination'] == c_value) & 
@@ -107,17 +144,25 @@ else:
 #                                                            (age_gender_bkts['gender'] == 'male')])
 #         df_all[c_value + '_stat'][df_all['age'] == -1] = round(int(val) / t, 2)
 
-# df_train = df_train[(df_train['country_destination'] != 'NDF') | (df_train.index % 6 > 0)]
-# df_train = df_train[((df_train['country_destination']=='--')) | 
-#                     ((df_train['country_destination']!='NDF')&(df_train['age']>0)&(df_train['gender']!='-unknown-')) | 
-#                     ((df_train['country_destination'] == 'NDF'))]
 
-# df_all = df_all[((df_all['country_destination']=='--')) | 
-#                 ((df_all['country_destination']!='NDF')&(df_all['age']>0)&(df_all['gender']!='-unknown-')) | 
-#                 ((df_all['country_destination'] == 'NDF'))]
+# In[11]:
+
+# df_train = df_train[(df_train['country_destination'] != 'NDF') | (df_train.index % 6 > 0)]
+
+# df_train = df_train[((df_train['country_destination']!='US')) | 
+#                     ((df_train['country_destination']=='US')&(df_train.index % 6 == 0))]
+
+# df_all = df_all[((df_all['country_destination']!='US')) | 
+#                 ((df_all['country_destination']=='US')&(df_all.index % 6 == 0))]
+
+
+# In[12]:
 
 # возраст заменим средним
 # df_all.age[df_all['age'] > 150] = 26
+
+
+# In[13]:
 
 # добавим еще языковой признак для стран
 df_all['lang_dist'] = 0
@@ -140,6 +185,9 @@ def add_language_d(x):
 
 df_all = df_all.apply(add_language_d, axis=1)
 
+
+# In[14]:
+
 # признак что пользуется apple
 df_all['mac_user'] = 0
 def add_mac_user(x):
@@ -149,8 +197,14 @@ def add_mac_user(x):
 
 # df_all = df_all.apply(add_mac_user, axis=1)
 
+
+# In[15]:
+
 # признак что указал пол "другой"
 df_all.insert(1, 'freak', df_all.apply(lambda x: int(x['gender']=='OTHER'), axis=1))
+
+
+# In[16]:
 
 # diff dac tfa
 def func(x):
@@ -161,6 +215,9 @@ def func(x):
     return round((dac-tfa) / 86400)
 
 df_all.insert(1, 'diff_dac_tfa', df_all.apply(func , axis=1)) 
+
+
+# In[17]:
 
 def add_session_event(df, field, value):
     df['user_id'] = df.id
@@ -224,6 +281,9 @@ def add_ag_session_data(df):
     df = df.fillna(-1)
     return df
 
+
+# In[18]:
+
 df_all = add_session_event(df_all, 'action_type', 'booking_request')
 df_all = add_session_event(df_all, 'action_type', 'message_post')
 df_all = add_session_event(df_all, 'action', 'phone_verification_success')
@@ -232,38 +292,234 @@ df_all = add_session_event(df_all, 'action', 'verify')
 df_all = add_session_event(df_all, 'action', 'coupon_field_focus')
 df_all = add_session_event(df_all, 'action', 'jumio_redirect')
 df_all = add_session_event(df_all, 'action', 'ajax_google_translate_reviews')
-
 df_all = add_session_event(df_all, 'action_detail', 'post_checkout_action')
 df_all = add_session_event(df_all, 'action_detail', 'guest_receipt')
-df_all = add_session_event(df_all, 'action_detail', 'translate_listing_reviews')
 df_all = add_session_event(df_all, 'action_detail', 'apply_coupon_click_success')
-
 df_all = add_session_event(df_all, 'action', 'apply_coupon_click')
 df_all = add_session_event(df_all, 'action_type', 'partner_callback')
-
 df_all = add_session_event(df_all, 'action_detail', 'p4')
 df_all = add_session_event(df_all, 'action_detail', 'p5')
 df_all = add_session_event(df_all, 'action_detail', 'your_trips')
+df_all = add_session_event(df_all, 'action_detail', 'translate_listing_reviews')
+
+
+# In[19]:
 
 df_all = add_rel_session_time(df_all, 'action_detail', 'view_search_results')
+df_all.action_detail_view_search_results_secs_elapsed[df_all['action_detail_view_search_results_secs_elapsed'] == 0] = -1
 
-# df_all = add_ag_session_data(df_all)
+
+# In[20]:
+
+# df_all['abroad'] = (df_all['translate_listing_reviews'] == 1) & (df_all['language'] == 'en')
 
 
+# In[21]:
+
+# df_all = add_session_event(df_all, 'action', 'header_userpic')
+# df_all = add_session_event(df_all, 'action', 'campaigns')
+# df_all = add_session_event(df_all, 'action', 'notifications')
+# df_all = add_session_event(df_all, 'action', 'personalize')
+# df_all = add_session_event(df_all, 'action', 'ask_question')
+
+
+# In[22]:
+
+df_all = add_ag_session_data(df_all)
+
+
+# In[23]:
+
+# df_all = df_all[(df_all['country_destination'] != 'US') | 
+#                 ((df_all['country_destination'] == 'US') & (df_all['gender'] != '-unknown-'))]
+# df_train = df_train[(df_train['country_destination'] != 'US') | 
+#                     ((df_train['country_destination'] == 'US') & (df_train['gender'] != '-unknown-'))]
+
+# df_all.age[(df_all['age'] == -1) & (df_all['country_destination'] == 'US') & (df_all.index % 2 == 0)]=\
+#     df_all.age[(df_all['age'] != -1) & (df_all['country_destination'] == 'US')].mean()
+    
+# df_train.age[(df_train['age'] == -1) & (df_train['country_destination'] == 'US') & (df_train.index % 2 == 0)]=\
+#     df_train.age[(df_train['age'] != -1) & (df_train['country_destination'] == 'US')].mean()
+
+
+# In[24]:
+
+def ohe_df(df_all, ex=[]):
+    """
+    One-hot-encoding features
+    """
+    ohe_feats = ['gender', 'signup_method', 'signup_flow', 'language', 'affiliate_channel',
+                 'affiliate_provider', 'first_affiliate_tracked', 'signup_app', 'first_device_type', 'first_browser']
+    for f in ohe_feats:
+        if f in df_all.columns.values and f not in ex:
+            df_all_dummy = pd.get_dummies(df_all[f], prefix=f)
+            df_all = df_all.drop([f], axis=1)
+            df_all = pd.concat((df_all, df_all_dummy), axis=1)
+    return df_all
+
+
+# ### Предсказание возраста
+
+# In[25]:
+
+age_clf = KNeighborsRegressor(n_jobs=-1)
+
+
+# In[26]:
+
+age_df = ohe_df(df_all)
+
+# для обучения
+age_df_X = age_df[age_df['age'] != -1]
+
+# для предсказания
+age_df_X_sub = age_df[age_df['age'] == -1]
+
+# для обучения
+age_df_y = age_df_X['age']
+
+# для вставки в исходный датасет
+id_age_test = age_df_X_sub['id']
+
+age_df_X = age_df_X.drop(['id', 'age', 'country_destination'], axis=1)
+age_df_X_sub = age_df_X_sub.drop(['id', 'age', 'country_destination'], axis=1)
+
+age_clf.fit(age_df_X.values, age_df_y.values)
+
+age_pred = age_clf.predict(age_df_X_sub.values)
+age_pred_df = pd.DataFrame(np.column_stack((id_age_test, age_pred)), columns=['id', 'age'])
+
+_a = age_df.age[age_df['age'] != -1].values
+_id = age_df.id[age_df['age'] != -1].values
+_d = pd.DataFrame(np.column_stack((_id, _a)), columns=['id', 'age'])
+_m = _d.append(age_pred_df)
+
+df_all = df_all.drop(['age'], axis=1)
+df_all = pd.merge(df_all, _m, on=('id'), how='left')
+
+
+# ### Предсказание пола
+
+# In[27]:
+
+gender_clf = XGBClassifier(max_depth=6, learning_rate=0.3, n_estimators=25, nthread=-1,
+                           objective='multi:softprob', subsample=1, colsample_bytree=0.5, seed=0)
+
+
+# In[28]:
+
+gender_df = ohe_df(df_all, ['gender'])
+
+# для обучения
+gender_df_X = gender_df[gender_df['gender'] != '-unknown-']
+
+# для предсказания
+gender_df_X_sub = gender_df[gender_df['gender'] == '-unknown-']
+
+# для обучения
+gender_df_y = gender_df_X['gender']
+
+# для вставки в исходный датасет
+id_gender_test = gender_df_X_sub['id']
+
+gender_df_X = gender_df_X.drop(['id', 'gender', 'country_destination'], axis=1)
+gender_df_X_sub = gender_df_X_sub.drop(['id', 'gender', 'country_destination'], axis=1)
+
+gender_clf.fit(gender_df_X.values, gender_df_y.values)
+
+gender_pred = gender_clf.predict(gender_df_X_sub.values)
+gender_pred_df = pd.DataFrame(np.column_stack((id_gender_test, gender_pred)), columns=['id', 'gender'])
+
+_g = gender_df.gender[gender_df['gender'] != '-unknown-'].values
+_id = gender_df.id[gender_df['gender'] != '-unknown-'].values
+_d = pd.DataFrame(np.column_stack((_id, _g)), columns=['id', 'gender'])
+_m = _d.append(gender_pred_df)
+
+df_all = df_all.drop(['gender'], axis=1)
+df_all = pd.merge(df_all, _m, on=('id'), how='left')
+
+
+# ### Предсказание поедет / не поедет
+
+# In[29]:
+
+trip_clf = XGBClassifier(max_depth=6, learning_rate=0.3, n_estimators=25, nthread=-1,
+                         subsample=1, colsample_bytree=0.5, seed=0)
+
+
+# In[30]:
+
+trip_df = ohe_df(df_all)
+
+# для обучения
+trip_df_X = trip_df[trip_df['country_destination'] != '--']
+
+# для предсказания
+trip_df_X_sub = trip_df[trip_df['country_destination'] == '--']
+
+# для обучения
+trip_df_y = (trip_df_X['country_destination'] != 'NDF').apply(lambda x: int(x))
+
+# для вставки в исходный датасет
+id_trip_test = trip_df_X_sub['id']
+
+trip_df_X = trip_df_X.drop(['id', 'country_destination'], axis=1)
+trip_df_X_sub = trip_df_X_sub.drop(['id', 'country_destination'], axis=1)
+
+
+# In[31]:
+
+trip_clf.fit(trip_df_X.values, trip_df_y.values)
+
+
+# In[32]:
+
+trip_pred = trip_clf.predict_proba(trip_df_X_sub.values)
+trip_pred = [round(x[1], 2) for x in trip_pred]
+
+
+# In[33]:
+
+trip_pred_df = pd.DataFrame(np.column_stack((id_trip_test, trip_pred)), columns=['id', 'trip'])
+
+
+# In[34]:
+
+_t = trip_df_y.values
+_id = trip_df.id[trip_df['country_destination'] != '--'].values
+_d = pd.DataFrame(np.column_stack((_id, _t)), columns=['id', 'trip'])
+_m = _d.append(trip_pred_df)
+
+
+# In[35]:
+
+df_all = pd.merge(df_all, _m, on=('id'), how='left')
+
+
+# ### Финальные приготовления
+
+# In[36]:
 
 df_all = df_all.drop(['id'], axis=1)
 df_all.shape
 
+
+# In[37]:
+
 df_all[df_all['country_destination'] == 'IT'].to_csv('IT.csv')
 
-#One-hot-encoding features
-ohe_feats = ['gender', 'signup_method', 'signup_flow', 'language', 'affiliate_channel',
-             'affiliate_provider', 'first_affiliate_tracked', 'signup_app', 'first_device_type', 'first_browser']
-for f in ohe_feats:
-    if f in df_all.columns.values:
-        df_all_dummy = pd.get_dummies(df_all[f], prefix=f)
-        df_all = df_all.drop([f], axis=1)
-        df_all = pd.concat((df_all, df_all_dummy), axis=1)
+
+# In[38]:
+
+# df_all = df_all.drop(['first_browser', 'first_device_type', 'signup_app'], axis=1)
+
+
+# In[39]:
+
+df_all = ohe_df(df_all)
+
+
+# In[40]:
 
 df_all = df_all[df_all['country_destination'] != 'AU']
 df_train = df_train[df_train['country_destination'] != 'AU']
@@ -287,22 +543,21 @@ df_all = df_all[df_all['country_destination'] != 'GB']
 df_train = df_train[df_train['country_destination'] != 'GB']
 
 
+# In[ ]:
+
+
+
+
+# ### Разделение датасета
+
+# In[41]:
 
 labels = df_train['country_destination'].values
 id_test = df_test['id']
 piv_train = df_train.shape[0]
 
-all_AU = df_all[df_all['country_destination'] == 'AU'].drop(['country_destination'], axis=1).values
-all_CA = df_all[df_all['country_destination'] == 'CA'].drop(['country_destination'], axis=1).values
-all_DE = df_all[df_all['country_destination'] == 'DE'].drop(['country_destination'], axis=1).values
-all_ES = df_all[df_all['country_destination'] == 'ES'].drop(['country_destination'], axis=1).values
-all_FR = df_all[df_all['country_destination'] == 'FR'].drop(['country_destination'], axis=1).values
-all_GB = df_all[df_all['country_destination'] == 'GB'].drop(['country_destination'], axis=1).values
-all_IT = df_all[df_all['country_destination'] == 'IT'].drop(['country_destination'], axis=1).values
-all_NL = df_all[df_all['country_destination'] == 'NL'].drop(['country_destination'], axis=1).values
-all_PT = df_all[df_all['country_destination'] == 'PT'].drop(['country_destination'], axis=1).values
-all_US = df_all[df_all['country_destination'] == 'US'].drop(['country_destination'], axis=1).values
-all_other = df_all[df_all['country_destination'] == 'other'].drop(['country_destination'], axis=1).values
+
+# In[42]:
 
 df_all = df_all.drop(['country_destination'], axis=1)
 
@@ -310,43 +565,17 @@ df_all = df_all.drop(['country_destination'], axis=1)
 vals = df_all.values
 X = vals[:piv_train]
 
-#########
-# X  = np.append(X, all_AU.repeat(1, axis=0), axis=0)
-# labels = np.append(labels, 1*len(all_AU)*['AU'])
 
-# X  = np.append(X, all_CA.repeat(5, axis=0), axis=0)
-# labels = np.append(labels, 5*len(all_CA)*['CA'])
-
-# X  = np.append(X, all_DE.repeat(5, axis=0), axis=0)
-# labels = np.append(labels, 5*len(all_DE)*['DE'])
-
-# X  = np.append(X, all_ES.repeat(5, axis=0), axis=0)
-# labels = np.append(labels, 5*len(all_ES)*['ES'])
-
-# X  = np.append(X, all_FR.repeat(2, axis=0), axis=0)
-# labels = np.append(labels, 2*len(all_FR)*['FR'])
-
-# X  = np.append(X, all_GB.repeat(5, axis=0), axis=0)
-# labels = np.append(labels, 5*len(all_GB)*['GB'])
-
-# X  = np.append(X, all_IT.repeat(5, axis=0), axis=0)
-# labels = np.append(labels, 5*len(all_IT)*['IT'])
-
-# X  = np.append(X, all_NL.repeat(5, axis=0), axis=0)
-# labels = np.append(labels, 5*len(all_NL)*['NL'])
-
-# X  = np.append(X, all_PT.repeat(5, axis=0), axis=0)
-# labels = np.append(labels, 5*len(all_PT)*['PT'])
-
-# X  = np.append(X, all_US.repeat(2, axis=0), axis=0)
-# labels = np.append(labels, 2*len(all_US)*['US'])
-
-# X  = np.append(X, all_other.repeat(2, axis=0), axis=0)
-# labels = np.append(labels, 2*len(all_other)*['other'])
+# In[43]:
 
 le = LabelEncoder()
 y = le.fit_transform(labels)   
 X_test = vals[piv_train:]
+
+
+# ### Модели
+
+# In[44]:
 
 # max_depth=6, learning_rate=0.3, n_estimators=25,
 #                    objective='multi:softprob', subsample=0.5, colsample_bytree=0.5, seed=0
@@ -363,17 +592,31 @@ gbc = GradientBoostingClassifier(n_estimators=100, learning_rate=1.0, max_depth=
 
 bgc = BaggingClassifier(base_estimator=fxgb())
 
+
+# In[45]:
+
 FCLSF = lambda: [RandomForestClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='gini'),
                  RandomForestClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='entropy'),
                  ExtraTreesClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='gini'),
-                 ExtraTreesClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='entropy')
+                 ExtraTreesClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='entropy'),
+                 fxgb()
         #KNeighborsClassifier(n_jobs=-1),
-#         XGBClassifier(max_depth=6, learning_rate=0.3, n_estimators=25, nthread=-1,
-#                       objective='multi:softprob', subsample=1, colsample_bytree=0.5, seed=0),
+
         #MLPClassifier(random_state=0, max_iter=1000)
         ]
 
+
+# ### Кросс-валидация
+
+# In[46]:
+
 from sklearn.cross_validation import StratifiedKFold, ShuffleSplit
+
+def argsort(array):
+    s = np.argsort(array)
+#     if s[11] != 7:
+#         s = np.insert(s, 11, 7)
+    return s
 
 def dcg_at_k(r, k, method=1):
     r = np.asfarray(r)[:k]
@@ -414,18 +657,36 @@ def score_predictions(preds, truth, n_modes=5):
 def _score(ROCtestTRN, ROCtestTRG, probas):
     cts = []
     for i in range(len(ROCtestTRN)):
-        cts += [np.argsort(probas[i])[::-1][:5].tolist()]
+        cts += [argsort(probas[i])[::-1][:5].tolist()]
     
     preds = pd.DataFrame(cts)
     truth = pd.Series(ROCtestTRG)
     
+    ## DEBUG
+    df_truth = pd.DataFrame(truth)
+    df_probas = pd.DataFrame(probas)
     preds.to_csv('preds_AU.csv', header=False)
     truth.to_csv('truth_AU.csv', header=False)
+    df_truth = df_truth.join(df_probas, rsuffix='_p')
+    df_truth.to_csv('probas.csv', header=False)
+    ###
     
     s = score_predictions(preds, truth)
     return np.sum(s) / len(s)
     
 
+def debug_probas(data, target, probas):
+    """
+    для отловки плохих предсказаний
+    """
+    df_probas = pd.DataFrame(probas)
+    data = pd.DataFrame(data)
+    data.columns = df_all.columns
+    target = pd.DataFrame(target)
+    df = data.join(target, rsuffix='_t')
+    df = df.join(df_probas, rsuffix='_p')
+    df.to_csv('debug_info.csv')
+    
 def model_score(model_name, train, target, metric=True):
     
     if model_name == 'xgb':
@@ -444,12 +705,21 @@ def model_score(model_name, train, target, metric=True):
         else:
             model.fit(ROCtrainTRN, ROCtrainTRG)
 
+            
         probas = model.predict_proba(ROCtestTRN)
+        
+        # DEBUG
+        debug_probas(ROCtestTRN, ROCtestTRG, probas)
+        #######
+        
         s = _score(ROCtestTRN, ROCtestTRG, probas)
         print s
         scores.append(s)
         
-    return np.array(scores).mean()
+    return np.array(scores).mean() 
+
+
+# In[50]:
 
 N_FOLDS = 2
 
@@ -479,13 +749,13 @@ def dataset_blend(X, y, X_submission, n_folds):
             dataset_blend_test_j[:, i] = clf.predict_proba(X_submission)[:,1]
         dataset_blend_test[:,j] = dataset_blend_test_j.mean(1)
 
-    dataset_blend_train = np.append(X, dataset_blend_train, axis=1)
-    dataset_blend_test = np.append(X_submission, dataset_blend_test, axis=1)
+#     dataset_blend_train = np.append(X, dataset_blend_train, axis=1)
+#     dataset_blend_test = np.append(X_submission, dataset_blend_test, axis=1)
     
     return dataset_blend_train, dataset_blend_test
 
 def blending(train, test, target):
-    clf = fxgb()
+    clf = LogisticRegression()
     clf.fit(train, target)
     probas = clf.predict_proba(test)
     return probas
@@ -525,6 +795,9 @@ def predict_stacking(train, target, X_submission):
 
     probas = blending(dataset_blend_train, dataset_blend_test, target)
     return probas
+
+
+# In[48]:
 
 # XGBClassifier: 0.832527603591 0.87871 стата по странам, все события
 # 0.832149507502 лучший без ограничений на возраст subsample=1 0.87807 ss1a
@@ -572,11 +845,21 @@ def predict_stacking(train, target, X_submission):
 # XGBClassifier: 0.86813210501 0.87892 без сложных стран
 # XGBClassifier: 0.900100721605 0.86890 c доп фильтрацией stacking 0.86481
 
+# XGBClassifier: 0.867137620981
+
+# XGBClassifier: 0.867390630916 0.87863 c новыми фичами
+
 print 'XGBClassifier:', model_score('xgb', X, y, False)
 # print 'MLPClassifier:', model_score(clf, X, y, False)
 # print 'Stacking:', score_stacking(X, y)
 
+
+# In[51]:
+
 print 'Stacking:', score_stacking(X, y)
+
+
+# In[ ]:
 
 # scores = []
 # for depth in range(4, 10, 1):
@@ -589,12 +872,23 @@ print 'Stacking:', score_stacking(X, y)
 #         scores.append(item)
 #         print depth, l_rate
 
+
+# In[ ]:
+
 # scores.sort(key=lambda x: x['score'])
 # for it in scores:
 #     print it
 
+
+# In[ ]:
+
 # scores_df = pd.DataFrame(scores)
 # scores_df.to_csv('scores.csv')
+
+
+# ### Обучение и сохранение результатов
+
+# In[ ]:
 
 def save(y_pred, name):
     ids = []  #list of ids
@@ -602,22 +896,35 @@ def save(y_pred, name):
     for i in range(len(id_test)):
         idx = id_test[i]
         ids += [idx] * 5
-        cts += le.inverse_transform(np.argsort(y_pred[i])[::-1])[:5].tolist()
+        pred = y_pred[i]
+        cts += le.inverse_transform( argsort(pred)[::-1] )[:5].tolist()
 
     sub = pd.DataFrame(np.column_stack((ids, cts)), columns=['id', 'country'])
     sub.to_csv(name,index=False)  
 
+
+# In[ ]:
+
+
+
+
+# In[ ]:
+
 assert(len(X_test) == len_df_test)
+
+
+# In[ ]:
 
 if submit:
 #     xgb = fxgb()
-    
 #     bgc = BaggingClassifier(base_estimator=xgb)
-#     xgb.fit(X, y)
+    xgb.fit(X, y)
 #     y_pred = xgb.predict_proba(X_test)
     y_pred = predict_stacking(X, y, X_test)
-    save(y_pred, 'wo_c_filter_data_stacking.csv')
+    save(y_pred, 'trip_pred_all_c.csv')
+
+
+# In[ ]:
 
 le.classes_
-
 
