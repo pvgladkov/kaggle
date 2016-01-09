@@ -232,9 +232,31 @@ df_all = add_session_event(df_all, 'action_detail', 'p5')
 df_all = add_session_event(df_all, 'action_detail', 'your_trips')
 df_all = add_session_event(df_all, 'action_detail', 'translate_listing_reviews')
 
-all_actions = sessions.action.unique()
-for action in all_actions:
-    df_all = add_session_event(df_all, 'action', action)
+df_all = add_rel_session_time(df_all, 'action_detail', 'view_search_results')
+df_all.action_detail_view_search_results_secs_elapsed[df_all['action_detail_view_search_results_secs_elapsed'] == 0] = -1
+
+df_all = add_ag_session_data(df_all)
+
+monster_file = 'monster_dataset.csv'
+if os.path.exists(monster_file):
+    df_all = pd.read_csv(monster_file)
+else:
+    all_actions = sessions.action.unique()
+    for action in all_actions:
+        df_all = add_session_event(df_all, 'action', action)
+    df_all.to_csv(monster_file, index=False)
+
+monster_file = 'monster_dataset_2.csv'
+if os.path.exists(monster_file):
+    df_all = pd.read_csv(monster_file)
+else:
+    all_action_details = sessions.action_detail.unique()
+    for action_detail in all_action_details:
+        if action_detail in ['post_checkout_action', 'guest_receipt', 'apply_coupon_click_success', 'p4', 'p5',
+                             'your_trips', 'translate_listing_reviews']:
+            continue
+        df_all = add_session_event(df_all, 'action_detail', action_detail)
+    df_all.to_csv(monster_file, index=False)
 
 # df_all = add_session_event(df_all, 'action', 'phone_verification_success')
 # df_all = add_session_event(df_all, 'action', 'languages_multiselect')
@@ -258,18 +280,15 @@ for action in all_actions:
 # df_all = add_session_event(df_all, 'action', 'pending') # i
 # df_all = add_session_event(df_all, 'action', 'profile_pic') # i
 
-df_all = add_rel_session_time(df_all, 'action_detail', 'view_search_results')
-df_all.action_detail_view_search_results_secs_elapsed[df_all['action_detail_view_search_results_secs_elapsed'] == 0] = -1
-
 # df_all = add_session_event(df_all, 'action', 'header_userpic')
 # df_all = add_session_event(df_all, 'action', 'campaigns')
 # df_all = add_session_event(df_all, 'action', 'notifications')
 # df_all = add_session_event(df_all, 'action', 'personalize')
 # df_all = add_session_event(df_all, 'action', 'ask_question')
 
-df_all = add_ag_session_data(df_all)
 
-df_all.to_csv('monster_dataset.csv', index=False)
+
+
 
 # df_all = df_all[(df_all['country_destination'] != 'US') | 
 #                 ((df_all['country_destination'] == 'US') & (df_all['gender'] != '-unknown-'))]
@@ -787,6 +806,6 @@ if True:
     xgb.fit(X.values, y)
     y_pred = xgb.predict_proba(X_test.values)
 #     y_pred = predict_stacking(X, y, X_test)
-    save(y_pred, 'new_f_3.csv')
+    save(y_pred, 'new_f_4.csv')
 
 le.classes_
