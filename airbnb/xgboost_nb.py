@@ -8,12 +8,13 @@ import xgboost
 from sklearn import cross_validation
 import time
 import datetime
+import os
 
 from sklearn.ensemble import BaggingClassifier, RandomForestClassifier, ExtraTreesClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.neural_network import MLPClassifier
-from xgboost.sklearn import XGBClassifier
+from xgboost.sklearn import XGBClassifier, XGBRegressor
 
 np.random.seed(0)
 
@@ -57,8 +58,6 @@ df_all = df_all.drop(['timestamp_first_active'], axis=1)
 # df_all.loc[df_all.age < 15, 'age'] = 15
 # df_all.loc[df_all.age > 100, 'age'] = 100
 
-
-
 def add_stat(x):
     if x['age'] == -1:
         return x
@@ -87,8 +86,6 @@ def add_stat(x):
     return x
 
 # по каждому юзеру заполним статистикой по полу и возрасту для всех стран
-import os
-
 filename = 'all_with_country_stat_new_2.csv'
 if os.path.exists(filename):
     df_all = pd.read_csv(filename)
@@ -164,7 +161,7 @@ df_all.insert(1, 'diff_dac_tfa', df_all.apply(func , axis=1))
 def add_session_event(df, field, value):
     df['user_id'] = df.id
     df = pd.merge(df, sessions[sessions[field] == value], how='left', on=('user_id'))
-    df.insert(1, value, df.apply(lambda x: int(x[field]==value), axis=1))
+    df.insert(1, field+'_'+str(value), df.apply(lambda x: int(x[field]==value), axis=1))
 
     _f = ['action', 'action_type', 'action_detail', 'device_type', 'secs_elapsed', 'user_id']
     df = df.drop(_f, axis=1)
@@ -225,41 +222,44 @@ def add_ag_session_data(df):
 
 df_all = add_session_event(df_all, 'action_type', 'booking_request')
 df_all = add_session_event(df_all, 'action_type', 'message_post')
-df_all = add_session_event(df_all, 'action', 'phone_verification_success')
-df_all = add_session_event(df_all, 'action', 'languages_multiselect')
-df_all = add_session_event(df_all, 'action', 'verify')
-df_all = add_session_event(df_all, 'action', 'coupon_field_focus')
-df_all = add_session_event(df_all, 'action', 'jumio_redirect')
-df_all = add_session_event(df_all, 'action', 'ajax_google_translate_reviews')
+df_all = add_session_event(df_all, 'action_type', 'partner_callback')
+
 df_all = add_session_event(df_all, 'action_detail', 'post_checkout_action')
 df_all = add_session_event(df_all, 'action_detail', 'guest_receipt')
 df_all = add_session_event(df_all, 'action_detail', 'apply_coupon_click_success')
-df_all = add_session_event(df_all, 'action', 'apply_coupon_click')
-df_all = add_session_event(df_all, 'action_type', 'partner_callback')
 df_all = add_session_event(df_all, 'action_detail', 'p4')
 df_all = add_session_event(df_all, 'action_detail', 'p5')
 df_all = add_session_event(df_all, 'action_detail', 'your_trips')
 df_all = add_session_event(df_all, 'action_detail', 'translate_listing_reviews')
 
-df_all = add_session_event(df_all, 'action', 'listings')
-df_all = add_session_event(df_all, 'action', 'ask_question')
-df_all = add_session_event(df_all, 'action', 'ajax_check_dates')
-df_all = add_session_event(df_all, 'action', 'identity')
-df_all = add_session_event(df_all, 'action', 'unavailabilities')
-df_all = add_session_event(df_all, 'action', 'collections')
-df_all = add_session_event(df_all, 'action', 'show_personalize')
-df_all = add_session_event(df_all, 'action', 'track_page_view')
-df_all = add_session_event(df_all, 'action', 'impressions') # i
-df_all = add_session_event(df_all, 'action', 'edit_verification') # i
-df_all = add_session_event(df_all, 'action', 'travel_plans_current') # i
-df_all = add_session_event(df_all, 'action', 'complete_status') # i
-df_all = add_session_event(df_all, 'action', 'pending') # i
-df_all = add_session_event(df_all, 'action', 'profile_pic') # i
+all_actions = sessions.action.unique()
+for action in all_actions:
+    df_all = add_session_event(df_all, 'action', action)
+
+# df_all = add_session_event(df_all, 'action', 'phone_verification_success')
+# df_all = add_session_event(df_all, 'action', 'languages_multiselect')
+# df_all = add_session_event(df_all, 'action', 'verify')
+# df_all = add_session_event(df_all, 'action', 'coupon_field_focus')
+# df_all = add_session_event(df_all, 'action', 'jumio_redirect')
+# df_all = add_session_event(df_all, 'action', 'ajax_google_translate_reviews')
+# df_all = add_session_event(df_all, 'action', 'apply_coupon_click')
+# df_all = add_session_event(df_all, 'action', 'listings')
+# df_all = add_session_event(df_all, 'action', 'ask_question')
+# df_all = add_session_event(df_all, 'action', 'ajax_check_dates')
+# df_all = add_session_event(df_all, 'action', 'identity')
+# df_all = add_session_event(df_all, 'action', 'unavailabilities')
+# df_all = add_session_event(df_all, 'action', 'collections')
+# df_all = add_session_event(df_all, 'action', 'show_personalize')
+# df_all = add_session_event(df_all, 'action', 'track_page_view')
+# df_all = add_session_event(df_all, 'action', 'impressions') # i
+# df_all = add_session_event(df_all, 'action', 'edit_verification') # i
+# df_all = add_session_event(df_all, 'action', 'travel_plans_current') # i
+# df_all = add_session_event(df_all, 'action', 'complete_status') # i
+# df_all = add_session_event(df_all, 'action', 'pending') # i
+# df_all = add_session_event(df_all, 'action', 'profile_pic') # i
 
 df_all = add_rel_session_time(df_all, 'action_detail', 'view_search_results')
 df_all.action_detail_view_search_results_secs_elapsed[df_all['action_detail_view_search_results_secs_elapsed'] == 0] = -1
-
-# df_all['abroad'] = (df_all['translate_listing_reviews'] == 1) & (df_all['language'] == 'en')
 
 # df_all = add_session_event(df_all, 'action', 'header_userpic')
 # df_all = add_session_event(df_all, 'action', 'campaigns')
@@ -268,6 +268,8 @@ df_all.action_detail_view_search_results_secs_elapsed[df_all['action_detail_view
 # df_all = add_session_event(df_all, 'action', 'ask_question')
 
 df_all = add_ag_session_data(df_all)
+
+df_all.to_csv('monster_dataset.csv', index=False)
 
 # df_all = df_all[(df_all['country_destination'] != 'US') | 
 #                 ((df_all['country_destination'] == 'US') & (df_all['gender'] != '-unknown-'))]
@@ -293,7 +295,7 @@ def ohe_df(df_all, ex=[]):
             df_all = pd.concat((df_all, df_all_dummy), axis=1)
     return df_all
 
-age_clf = KNeighborsRegressor(n_jobs=-1)
+# age_clf = XGBRegressor(nthread=-1)
 
 # age_df = ohe_df(df_all)
 
@@ -457,14 +459,14 @@ FCLSF = lambda: [RandomForestClassifier(n_estimators=25, max_depth=6, n_jobs=-1,
                  RandomForestClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='entropy'),
                  ExtraTreesClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='gini'),
                  ExtraTreesClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='entropy'),
-                 fxgb(),
-                 MLPClassifier(random_state=0, max_iter=1000),
-                 RandomForestClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='gini'),
-                 RandomForestClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='entropy'),
-                 ExtraTreesClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='gini'),
-                 ExtraTreesClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='entropy'),
-                 fxgb(),
-                 MLPClassifier(random_state=0, max_iter=1000)
+                 fxgb()
+#                  MLPClassifier(random_state=0, max_iter=1000),
+#                  RandomForestClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='gini'),
+#                  RandomForestClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='entropy'),
+#                  ExtraTreesClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='gini'),
+#                  ExtraTreesClassifier(n_estimators=25, max_depth=6, n_jobs=-1, criterion='entropy'),
+#                  fxgb(),
+#                  MLPClassifier(random_state=0, max_iter=1000)
         #KNeighborsClassifier(n_jobs=-1),
 
         #MLPClassifier(random_state=0, max_iter=1000)
@@ -526,7 +528,12 @@ def _score(ROCtestTRN, ROCtestTRG, probas):
     preds.to_csv('preds_AU.csv', header=False)
     truth.to_csv('truth_AU.csv', header=False)
     df_truth = df_truth.join(df_probas, rsuffix='_p')
-    df_truth.to_csv('probas.csv', header=False)
+    df_truth.to_csv('probas.csv', index=False)
+    
+    if len (df_truth.columns) == 6:
+        df_truth.columns = ['cid', 'FR', 'IT', 'NDF', 'US', 'other']
+        print 'NDF / US ratio: ', float(df_truth[(df_truth['cid'] == 2) & (df_truth['NDF'] < df_truth['US'])].shape[0])\
+                                        /df_truth[(df_truth['cid'] == 3) & (df_truth['NDF'] < df_truth['US'])].shape[0]
     ###
     
     s = score_predictions(preds, truth)
@@ -543,7 +550,8 @@ def debug_probas(data, target, probas):
     target = pd.DataFrame(target)
     df = data.join(target, rsuffix='_t')
     df = df.join(df_probas, rsuffix='_p')
-    df.to_csv('debug_info.csv')
+    
+    df.to_csv('debug_info.csv', index=False)
     
 def model_score(model_name, train, target, metric=True):
     """
@@ -580,7 +588,7 @@ def model_score(model_name, train, target, metric=True):
         
     return np.array(scores).mean() 
 
-N_FOLDS = 2
+N_FOLDS = 10
 
 def dataset_blend(X, y, X_submission, n_folds):
     """ 
@@ -588,6 +596,7 @@ def dataset_blend(X, y, X_submission, n_folds):
     X: pd.DataFrame
     X_submission: pd.DataFrame
     """
+    
     skf = list(StratifiedKFold(y, n_folds))
     
     clsf = FCLSF()
@@ -778,6 +787,6 @@ if True:
     xgb.fit(X.values, y)
     y_pred = xgb.predict_proba(X_test.values)
 #     y_pred = predict_stacking(X, y, X_test)
-    save(y_pred, 'new_f_1.csv')
+    save(y_pred, 'new_f_3.csv')
 
 le.classes_
