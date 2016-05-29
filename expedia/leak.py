@@ -1,5 +1,4 @@
 # coding: utf-8
-__author__ = 'ZFTurbo: https://kaggle.com/zfturbo'
 
 import datetime
 from heapq import nlargest
@@ -9,7 +8,7 @@ from collections import defaultdict
 
 def run_solution():
     print('Preparing arrays...')
-    f = open("../input/train.csv", "r")
+    f = open("/home/pavel/P/kaggle_data/expedia/train.csv", "r")
     f.readline()
     best_hotels_od_ulc = defaultdict(lambda: defaultdict(int))
     best_hotels_search_dest = defaultdict(lambda: defaultdict(int))
@@ -60,9 +59,9 @@ def run_solution():
 
     print('Generate submission...')
     now = datetime.datetime.now()
-    path = 'submission_' + str(now.strftime("%Y-%m-%d-%H-%M")) + '.csv'
+    path = '/home/pavel/P/kaggle_data/expedia/submission_' + str(now.strftime("%Y-%m-%d-%H-%M")) + '.csv'
     out = open(path, "w")
-    f = open("../input/test.csv", "r")
+    f = open("/home/pavel/P/kaggle_data/expedia/test.csv", "r")
     f.readline()
     total = 0
     out.write("id,hotel_cluster\n")
