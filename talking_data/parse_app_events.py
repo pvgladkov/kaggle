@@ -53,12 +53,26 @@ def dict_to_file(m_dict, path):
     file_write.close()
     return
 
+def read_to_dict(path):
+    print 'start reading dict'
+    file_read = open(path, 'r')
+    result = {}
+    for line in file_read:
+        items = line.split(',')
+        result[items[0]] = int(items[1])+1
+    return result
+
+
 if __name__ == '__main__':
 
-    dict = find_cols_freq('app_events.csv')
-    import operator
+    # dict = find_cols_freq('app_events.csv')
+    # import operator
+    #
+    # sorted_x = sorted(dict.items(), key=operator.itemgetter(1))
+    # dict_to_file(sorted_x, os.path.join(os.getcwd(), 'sorted_dict.csv'))
+    #
+    # print len(dict)
 
-    sorted_x = sorted(dict.items(), key=operator.itemgetter(1))
-    dict_to_file(sorted_x, os.path.join(os.getcwd(), 'sorted_dict.csv'))
+    dict = read_to_dict('sorted_dict.csv')
+    print dict
 
-    print len(dict)
