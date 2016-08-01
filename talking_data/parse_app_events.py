@@ -45,10 +45,10 @@ def find_cols_freq(path):
             dict[items[1]] = 1
     return dict
 
-def dict_to_file(m_dict, path):
+def tuple_to_file(m_list, path):
     file_write = open(path, 'w')
-    for key, value in m_dict.iteritems():
-        file_write.writeline(str(key) + ',' + str(value))
+    for item in m_list:
+        file_write.write(str(item[0]) + ',' + str(item[1])+'\n')
     file_write.flush()
     file_write.close()
     return
@@ -56,23 +56,22 @@ def dict_to_file(m_dict, path):
 def read_to_dict(path):
     print 'start reading dict'
     file_read = open(path, 'r')
+    #result =[]
     result = {}
     for line in file_read:
         items = line.split(',')
         result[items[0]] = int(items[1])+1
+        #result.append((items[0], int(items[1])+1))
     return result
 
 
 if __name__ == '__main__':
 
     # dict = find_cols_freq('app_events.csv')
-    # import operator
-    #
-    # sorted_x = sorted(dict.items(), key=operator.itemgetter(1))
-    # dict_to_file(sorted_x, os.path.join(os.getcwd(), 'sorted_dict.csv'))
-    #
-    # print len(dict)
 
-    dict = read_to_dict('sorted_dict.csv')
-    print dict
+    import operator
+    m_list = read_to_dict('sorted_dict.csv')
+    sorted_x = sorted(m_list.items(), key=operator.itemgetter(1), reverse=True)
+    tuple_to_file(sorted_x, 'sorted_dict2.csv')
+    print sorted_x
 
