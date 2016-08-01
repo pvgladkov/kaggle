@@ -99,6 +99,9 @@ if __name__ == '__main__':
 
     app_ids = read_app_ids('sorted_dict.csv')
     event_ids = read_event_id('event_id_list.csv')
+    dict = init_struct(app_ids, event_ids)
+    dict = file_parse(dict, 'app_events.csv')
+    struct_to_file(dict, app_ids)
     print event_ids
 
 
