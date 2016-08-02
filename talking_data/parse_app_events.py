@@ -36,13 +36,22 @@ def read_to_dict(path):
         result[items[0]] = int(items[1])
     return result
 
-def read_app_ids(path):
-    print 'start reading dict'
+def init_app_id_dict(path):
+    print 'start reading dict...'
     file_read = open(path, 'r')
     result = {}
     for line in file_read:
         items = line.split(',')
         result[items[0]] = 0
+    return result
+
+def read_app_ids(path):
+    print 'start reading app_ids...'
+    file_read = open(path, 'r')
+    result = []
+    for line in file_read:
+        items = line.split(',')
+        result.append(items[0])
     return result
 
 def read_event_id(path):
@@ -53,20 +62,37 @@ def read_event_id(path):
         result.append(line)
     return result
 
-def init_struct(app_ids, event_ids):
-    dict = {}
-    for event_id in event_ids:
-        dict[event_id] = app_ids.copy()
-    return dict
-
-def file_parse(dict, path):
+def file_parse(dict, app_ids, path):
+    cur_dict = dict.copy()
     file_read = open(path, 'r')
+    file_read.readline()
+    write_file = open('app_events_features.csv', 'w')
+    print_header(write_file, app_ids)
+    line = file_read.readline()
+    item = line.split(',')
+    cur_event_id = item[0]
+    app_id = item[1]
+    cur_dict[app_id] = 1
+
     i = 0
-    for line in file_read:
+    while line <> '':
         i += 1
-        items = line.split(',')
-        dict[items[0]][items[1]] = 1
-    return dict
+        line = file_read.readline()
+        if line <> '':
+            item = line.split(',')
+            event_id = item[0]
+            app_id = item[1]
+            if event_id <> cur_event_id:
+                struct_to_file(write_file, cur_dict, cur_event_id, app_ids)
+                cur_dict = dict.copy()
+                cur_event_id = event_id
+            else:
+                cur_dict[app_id] = 1
+
+    struct_to_file(write_file, cur_dict, cur_event_id, app_ids)
+    write_file.flush()
+    write_file.close()
+    return
 
 def print_header(write_file, app_ids):
     write_file.write('event_id')
@@ -75,17 +101,37 @@ def print_header(write_file, app_ids):
     write_file.write('\n')
     return
 
-def struct_to_file(dict, app_ids):
-    write_file = open('app_events_features.csv', 'w')
-    print_header(write_file, app_ids)
-    for key, value in dict.iteritems():
-        write_file.write(str(key))
-        for app_id in app_ids:
-            write_file.write(','+str(value[app_id]))
-        write_file.write('\n')
-    write_file.flush()
-    write_file.close()
+def struct_to_file(write_file, dict, event_id, app_ids):
+    write_file.write(str(event_id))
+    for app_id in app_ids:
+        write_file.write(','+str(dict[app_id]))
+    write_file.write('\n')
     return
+
+def check_event_id_repeat(path):
+    repeat_fl = False
+    event_id_list = []
+    read_file = open(path, 'r')
+    read_file.readline()
+    line = read_file.readline()
+    item = line.split(',')
+    cur_event_id = item[0]
+    event_id_list.append(cur_event_id)
+    i = 0
+    while line <> '':
+        i += 1
+        line = read_file.readline()
+        if line <> '':
+            item = line.split(',')
+            event_id = item[0]
+            if event_id <> cur_event_id:
+                if event_id not in event_id_list:
+                    cur_event_id = event_id
+                    event_id_list.append(cur_event_id)
+                else:
+                    repeat_fl = True
+                    break
+    return repeat_fl
 
 if __name__ == '__main__':
 
@@ -97,11 +143,16 @@ if __name__ == '__main__':
     # tuple_to_file(sorted_x, 'sorted_dict2.csv')
     # print sorted_x
 
+    dict = init_app_id_dict('sorted_dict.csv')
     app_ids = read_app_ids('sorted_dict.csv')
-    event_ids = read_event_id('event_id_list.csv')
-    dict = init_struct(app_ids, event_ids)
-    dict = file_parse(dict, 'app_events.csv')
-    struct_to_file(dict, app_ids)
-    print event_ids
+
+    dict = file_parse(dict, app_ids,  'app_events.csv')
+    print 'Thats all falks...'
+    # print event_ids
+
+    # flag = check_event_id_repeat('app_events.csv')
+    # print 'Repeats: ', flag
+
+
 
 
