@@ -40,7 +40,9 @@ def init_app_id_dict(path):
     print 'start reading dict...'
     file_read = open(path, 'r')
     result = {}
-    for line in file_read:
+    for i in range(1001):
+    #for line in file_read:
+        line = file_read.readline()
         items = line.split(',')
         result[items[0]] = 0
     return result
@@ -49,7 +51,9 @@ def read_app_ids(path):
     print 'start reading app_ids...'
     file_read = open(path, 'r')
     result = []
-    for line in file_read:
+    for i in range(1001):
+    #for line in file_read:
+        line = file_read.readline()
         items = line.split(',')
         result.append(items[0])
     return result
@@ -63,6 +67,7 @@ def read_event_id(path):
     return result
 
 def file_parse(dict, app_ids, path):
+    print 'Started parsing big file....'
     cur_dict = dict.copy()
     file_read = open(path, 'r')
     file_read.readline()
