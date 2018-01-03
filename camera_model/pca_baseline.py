@@ -11,9 +11,11 @@ from sklearn.decomposition import PCA
 
 VERSION = 1
 
+home_path = '/var/local/pgladkov/camera_model'
 data_path = '/var/local/pgladkov/camera_model/data'
 train_path = data_path + '/train'
 test_path = data_path + '/test'
+features_path = home_path + '/features'
 
 logger = create_logger('pca_baseline')
 
@@ -120,5 +122,5 @@ if __name__ == '__main__':
         train[col] = train['fname'].apply(lambda x: color_info[x][n])
         test[col] = test['fname'].apply(lambda x: color_info[x][n])
 
-    train.to_csv('train_pca_features_v{}.csv'.format(VERSION), index=False)
-    test.to_csv('test_pca_features_v{}.csv'.format(VERSION), index=False)
+    train.to_csv('{}/train_pca_features_v{}.csv'.format(features_path, VERSION), index=False)
+    test.to_csv('{}/test_pca_features_v{}.csv'.format(features_path, VERSION), index=False)
