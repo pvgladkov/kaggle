@@ -9,7 +9,8 @@ import numpy as np
 import pandas as pd
 from sklearn.decomposition import PCA
 
-VERSION = 1
+VERSION = 2
+N_CORE = 10
 
 home_path = '/var/local/pgladkov/camera_model'
 data_path = '/var/local/pgladkov/camera_model/data'
@@ -26,7 +27,7 @@ def get_center_crop(img, d=250):
     return img[cy - d:cy + d, cx - d:cx + d]
 
 
-def color_stats(q, iolock):
+def color_stats(q, pf):
     while True:
         img_path = q.get()
         if img_path is None:
@@ -45,14 +46,35 @@ def color_stats(q, iolock):
         
         # crop to center as in test    
         img = get_center_crop(img)
-        pca_feats = get_pca_features(img)
+        pca_feats = get_pca_features(img, pf)
         color_info[key] = (pca_feats[0][0], pca_feats[0][1],
                            pca_feats[0][2], pca_feats[0][3], pca_feats[0][4])
 
 
-def get_pca_features(img):
+def get_pca_features(img, pf):
     img = np.ravel(img).reshape(1, -1)
     return pf.transform(img)
+
+
+def fit_pca():
+    n_components = 5
+    _pca = PCA(n_components=n_components, svd_solver='randomized', whiten=True)
+
+    # Get some training data for PCA
+    random_images = train.sample(100)
+
+    img_set_reds = []
+    for i, r in random_images.iterrows():
+        # If you uncomment last part, you can extract features only over a certain channel
+        x = get_center_crop(cv2.imread('{}/{}/{}'.format(train_path, train['camera'][i], train['fname'][i])))
+        # PCA takes instances as flatten vectors, not 2-d array
+        img_set_reds.append(np.ravel(x))
+
+    img_set_reds = np.asarray(img_set_reds)
+    logger.info('img_set_reds.shape {}'.format(img_set_reds.shape))
+    _pca.fit(np.asarray(img_set_reds))
+
+    return _pca
 
 
 if __name__ == '__main__':
@@ -74,22 +96,7 @@ if __name__ == '__main__':
     test = pd.DataFrame(test_images, columns=['fname'])
     logger.info('test.shape {}'.format(test.shape))
 
-    n_components = 5
-    pca = PCA(n_components=n_components, svd_solver='randomized', whiten=True)
-
-    # Get some training data for PCA
-    random_images = train.sample(100)
-
-    img_set_reds = []
-    for i, r in random_images.iterrows():
-        # If you uncomment last part, you can extract features only over a certain channel
-        x = get_center_crop(cv2.imread(train_path + '/' + train['camera'][i] + '/' + train['fname'][i]))
-        img_set_reds.append(np.ravel(x))  # PCA takes instances as flatten vectors, not 2-d array
-
-    img_set_reds = np.asarray(img_set_reds)
-    logger.info('img_set_reds.shape {}'.format(img_set_reds.shape))
-
-    pf = pca.fit(np.asarray(img_set_reds))
+    pca = fit_pca()
 
     cols = ['pca0', 'pca1', 'pca2', 'pca3', 'pca4']
 
@@ -97,13 +104,11 @@ if __name__ == '__main__':
         train[col] = None
         test[col] = None
 
-    NCORE = 8
-
     color_info = mp.Manager().dict()
 
-    q = mp.Queue(maxsize=NCORE)
+    q = mp.Queue(maxsize=N_CORE)
     iolock = mp.Lock()
-    pool = mp.Pool(NCORE, initializer=color_stats, initargs=(q, iolock))
+    pool = mp.Pool(N_CORE, initializer=color_stats, initargs=(q, pca))
 
     for i in train_images:
         q.put(i)
@@ -111,7 +116,7 @@ if __name__ == '__main__':
     for i in test_images:
         q.put(i)
 
-    for _ in range(NCORE):
+    for _ in range(N_CORE):
         q.put(None)
     pool.close()
     pool.join()
