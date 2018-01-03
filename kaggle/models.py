@@ -11,7 +11,7 @@ def cross_validation_score(model_obj, train, target, func):
     :param func:
     :return:
     """
-    skf = StratifiedKFold(target, n_folds=4, random_state=1234)
+    skf = StratifiedKFold(target, n_folds=5, random_state=1234)
     scores = []
 
     model = deepcopy(model_obj)
