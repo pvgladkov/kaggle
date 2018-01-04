@@ -9,9 +9,10 @@ class CNN1(object):
     name = 'cnn1'
 
     @staticmethod
-    def model(n_class):
+    def model(n_class, batch_size):
         input_shape = (256, 256, 3)
-        inp = Input(shape=input_shape)
+        batch_shape = (batch_size, 256, 256, 3)
+        inp = Input(batch_shape=batch_shape)
         norm_inp = BatchNormalization()(inp)
         img_1 = Convolution2D(16, kernel_size=3, activation=activations.relu, padding="same")(norm_inp)
         img_1 = Convolution2D(16, kernel_size=3, activation=activations.relu, padding="same")(img_1)
