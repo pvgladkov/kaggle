@@ -7,21 +7,14 @@ from random import shuffle
 from datetime import datetime
 
 from keras.callbacks import (ModelCheckpoint, EarlyStopping)
-from PIL import Image
 
-from camera_model.data_utils import TrainSequence, PredictSequence
+from data_utils import TrainSequence, PredictSequence
 from settings import train_path, test_path, submissions_path, weights_path
 from models import CNN1
+from sklearn.model_selection import train_test_split
 from kaggle.utils import create_logger
 
 logger = create_logger('simple_cnn')
-
-
-def read_and_resize(f_path):
-    im_array = np.array(Image.open(f_path), dtype="uint8")
-    pil_im = Image.fromarray(im_array)
-    new_array = np.array(pil_im.resize((256, 256)))
-    return new_array / 255.0
 
 
 def label_transform(labels):
@@ -30,7 +23,7 @@ def label_transform(labels):
     return labels, index
 
 
-def train_df(use_crop=False, use_original=False):
+def get_train_df(use_crop=False, use_original=False):
     cameras = os.listdir(train_path)
 
     if not use_crop and not use_original:
@@ -52,7 +45,7 @@ def train_df(use_crop=False, use_original=False):
     return pd.DataFrame(train_images, columns=['camera', 'fname', 'path'])
 
 
-def test_df():
+def get_test_df():
     test_images = []
     for _fname in sorted(os.listdir(test_path)):
         _path = '{}/{}'.format(test_path, _fname)
@@ -63,15 +56,16 @@ def test_df():
 
 if __name__ == '__main__':
 
-    batch_size = 128
+    batch_size = 64
+    logger.info('batch_size = {}'.format(batch_size))
 
-    train = train_df(use_crop=False, use_original=True)
-    logger.info('train.shape {}'.format(train.shape))
+    train_df = get_train_df(use_crop=True, use_original=False)
+    logger.info('train.shape {}'.format(train_df.shape))
 
-    test = test_df()
-    logger.info('test.shape {}'.format(test.shape))
+    test_df = get_test_df()
+    logger.info('test.shape {}'.format(test_df.shape))
 
-    y, label_index = label_transform(train['camera'].values)
+    y, label_index = label_transform(train_df['camera'].values)
     y = np.array(y)
     logger.info('y.shape {}'.format(y.shape))
 
@@ -83,22 +77,28 @@ if __name__ == '__main__':
     early = EarlyStopping(monitor="val_acc", mode="max", patience=1)
     callbacks_list = [checkpoint, early]
 
-    X_train = TrainSequence(train['path'].values, y, batch_size)
+    train_train, train_validate, y_train, y_validate = train_test_split(train_df['path'].values, y,
+                                                                        test_size=0.1, random_state=777)
 
-    history = model.fit_generator(X_train, epochs=20, verbose=2, use_multiprocessing=True,
-                                  workers=20, callbacks=callbacks_list)
+    X_y_train = TrainSequence(train_train, y_train, batch_size)
+    X_y_validate = TrainSequence(train_validate, y_validate, batch_size)
+
+    history = model.fit_generator(X_y_train, epochs=20, verbose=2, use_multiprocessing=True,
+                                  workers=20, callbacks=callbacks_list, validation_data=X_y_validate)
 
     model.load_weights(file_path)
 
     logger.info('make prediction')
-    X_test = PredictSequence(test['path'].values, batch_size)
+    X_test = PredictSequence(test_df['path'].values, batch_size)
 
     predicts = model.predict_generator(X_test, use_multiprocessing=True, workers=20)
+
     predicts = np.argmax(predicts, axis=1)
     predicts = [label_index[p] for p in predicts]
+    assert test_df.shape[0] == len(predicts), '{} != {}'.format(test_df.shape[0], len(predicts))
 
     df = pd.DataFrame(columns=['fname', 'camera'])
-    df['fname'] = test['fname'].values
+    df['fname'] = test_df['fname'].values
     df['camera'] = predicts
 
     now = datetime.now()

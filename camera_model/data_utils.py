@@ -1,9 +1,8 @@
 import math
 
 import numpy as np
+from PIL import Image
 from keras.utils import Sequence
-
-from camera_model.simple_cnn import read_and_resize
 
 
 class TrainSequence(Sequence):
@@ -13,7 +12,7 @@ class TrainSequence(Sequence):
         self.batch_size = batch_size
 
     def __len__(self):
-        return math.ceil(len(self.x) / self.batch_size)
+        return math.ceil(1.0 * len(self.x) / self.batch_size)
 
     def __getitem__(self, idx):
         batch_x = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
@@ -27,8 +26,15 @@ class PredictSequence(Sequence):
         self.batch_size = batch_size
 
     def __len__(self):
-        return math.ceil(len(self.x) / self.batch_size)
+        return math.ceil(1.0 * len(self.x) / self.batch_size)
 
     def __getitem__(self, idx):
         batch_x = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
         return np.array([read_and_resize(p) for p in batch_x])
+
+
+def read_and_resize(f_path):
+    im_array = np.array(Image.open(f_path), dtype="uint8")
+    pil_im = Image.fromarray(im_array)
+    new_array = np.array(pil_im.resize((256, 256)))
+    return new_array / 255.0

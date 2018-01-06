@@ -1,6 +1,7 @@
 # coding: utf-8
 
 import os
+import numpy as np
 from multiprocessing import Pool
 from kaggle.utils import create_logger
 import pandas as pd
@@ -49,6 +50,7 @@ def transform(path, crop_type=None, alter_type=None, rotate=None):
         return ImageEnhance.Brightness(im).enhance(gamma)
 
     def _gamma2(im, gamma):
+        im = np.array(im)
         return exposure.adjust_gamma(im, gamma=gamma)
 
     alter_types = {
