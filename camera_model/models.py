@@ -3,6 +3,8 @@
 from keras import Input, activations, models, optimizers, losses
 from keras.layers import BatchNormalization, Convolution2D, MaxPooling2D, Dropout, GlobalMaxPool2D, Dense
 
+from keras.applications import resnet50
+
 
 class CNN1(object):
 
@@ -32,6 +34,19 @@ class CNN1(object):
         model = models.Model(inputs=inp, outputs=dense_1)
         opt = optimizers.Adam()
 
+        model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'])
+        model.summary()
+        return model
+
+
+class ResNet50(object):
+
+    name = 'resnet50'
+
+    @staticmethod
+    def model(n_class, batch_size):
+        model = resnet50.ResNet50()
+        opt = optimizers.Adam()
         model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'])
         model.summary()
         return model
