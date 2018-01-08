@@ -45,7 +45,7 @@ class ResNet50(object):
 
     @staticmethod
     def model(n_class, batch_size):
-        model = resnet50.ResNet50()
+        model = resnet50.ResNet50(input_shape=(256, 256, 3), classes=10, weights=None)
         opt = optimizers.Adam()
         model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'])
         model.summary()

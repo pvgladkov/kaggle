@@ -3,6 +3,7 @@ import math
 import numpy as np
 from PIL import Image
 from keras.utils import Sequence
+import random
 
 from image_utils import transform_im, read_and_resize, resize_shape, crop
 
@@ -37,18 +38,19 @@ class TrainFileSequenceOnFly(Sequence):
         X = []
         y = []
         for _p, _y in zip(batch_x, batch_y):
-            img = Image.open(_p)
-            _as = ['resize05', 'resize08', 'resize15', 'resize20', 'gamma08', 'gamma12', 'q70', 'q90']
-            rotates = [90, 180, 270, 0]
-            for a_type in _as:
-                for crop_type in [0, 1]:
-                    for angle in rotates:
-                        image_copy = img.copy()
-                        image_copy = transform_im(image_copy, crop_type, a_type, angle)
-                        image_copy = np.array(image_copy.resize((256, 256)))
-                        image_copy = image_copy / 255.0
-                        X.append(image_copy)
-                        y.append(_y)
+            with Image.open(_p) as img:
+                _as = ['resize05', 'resize08', 'resize15', 'resize20', 'gamma08', 'gamma12', 'q70', 'q90', None]
+                rotates = [90, 180, 270, 0]
+                crops = [0, 1, 2, 3, 4]
+                for a_type in random.sample(_as, 8):
+                    for crop_type in random.sample(crops, 2):
+                        for angle in [random.choice(rotates)]:
+                            image_copy = img.copy()
+                            image_copy = transform_im(image_copy, crop_type, a_type, angle)
+                            image_copy = np.array(image_copy.resize((256, 256)))
+                            image_copy = image_copy / 255.0
+                            X.append(image_copy)
+                            y.append(_y)
 
         return np.array(X), np.array(y)
 

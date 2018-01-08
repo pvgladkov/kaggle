@@ -71,4 +71,6 @@ def rotate(im, angle):
 def jpeg_comp(im, q):
     buf = StringIO.StringIO()
     im.save(buf, "JPEG", quality=q)
-    return Image.open(StringIO.StringIO(buf.getvalue()))
+    img = Image.open(StringIO.StringIO(buf.getvalue()))
+    buf.close()
+    return img
