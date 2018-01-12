@@ -1,7 +1,7 @@
 # coding: utf-8
 
 import os
-from random import shuffle
+from sklearn.utils import shuffle
 import pandas as pd
 from PIL import Image
 import numpy as np
@@ -31,7 +31,7 @@ def get_train_df(train_path, use_crop=False, use_original=False):
             _path = '{}/{}/{}'.format(train_path, camera, _fname)
             train_images.append((camera, _fname, _path))
 
-    shuffle(train_images)
+    shuffle(train_images, random_state=777)
     return pd.DataFrame(train_images, columns=['camera', 'fname', 'path'])
 
 

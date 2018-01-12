@@ -2,6 +2,7 @@ import io
 import telegram
 
 from keras.callbacks import Callback
+from keras.callbacks import (ModelCheckpoint, EarlyStopping)
 from kaggle.utils import create_logger
 
 logger = create_logger('telegram monitor')
@@ -37,3 +38,10 @@ class TelegramMonitor(Callback):
             return ret
         except Exception as e:
             logger.exception(e)
+
+
+def init_callbacks(w_file, m_name, v, telegram_bot_api_key, chat_it):
+    checkpoint = ModelCheckpoint(w_file, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
+    _name = '{}-{}'.format(m_name, v)
+    telegram = TelegramMonitor(api_token=telegram_bot_api_key, chat_id=chat_it, model_name=_name)
+    return [checkpoint, telegram]

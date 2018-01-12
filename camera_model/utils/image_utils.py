@@ -5,7 +5,7 @@ from PIL import Image, ImageEnhance
 from skimage import exposure
 
 
-def transform_im(im, crop_type=None, alter_type=None, rotate_angle=None):
+def transform_im(im, crop_type=None, alter_type=None, rotate_angle=None, shape=224):
     alter_types = {
         'resize05': lambda x: resize(x, 0.5),
         'resize08': lambda x: resize(x, 0.8),
@@ -17,13 +17,16 @@ def transform_im(im, crop_type=None, alter_type=None, rotate_angle=None):
         'q90': lambda x: jpeg_comp(x, 90)
     }
 
-    if crop_type is not None:
-        im = crop(im, crop_type)
+    im = crop(im, 0, 2*shape)
 
     if rotate_angle > 0:
         im = rotate(im, rotate_angle)
 
     im = alter_types.get(alter_type, lambda x: x)(im)
+
+    if crop_type is not None:
+        im = crop(im, crop_type, shape)
+
     return im
 
 
@@ -32,6 +35,16 @@ def read_and_resize(f_path):
     pil_im = Image.fromarray(im_array)
     new_array = np.array(pil_im.resize((256, 256)))
     return new_array / 255.0
+
+
+def read_and_crop(f_path, crop_type=None, shape=None):
+    im = Image.open(f_path)
+
+    if crop_type is not None and shape is not None:
+        im = crop(im, crop_type, shape)
+
+    im_array = np.array(im, dtype="uint8")
+    return im_array / 255.0
 
 
 def resize_shape(im, w, h):
@@ -52,14 +65,15 @@ def gamma2(im, g):
     return exposure.adjust_gamma(im, gamma=g)
 
 
-def crop(im, t):
+def crop(im, t, size):
     w, h = im.size
+    h_size = size // 2
     crop_types = [
-        (w // 2 - 256, h // 2 - 256, w // 2 + 256, h // 2 + 256),
-        (0, 0, 512, 512),
-        (w - 512, 0, w, 512),
-        (0, h - 512, 512, h),
-        (w - 512, h - 512, w, h),
+        (w // 2 - h_size, h // 2 - h_size, w // 2 + h_size, h // 2 + h_size),
+        (0, 0, size, size),
+        (w - size, 0, w, size),
+        (0, h - size, size, h),
+        (w - size, h - size, w, h),
     ]
     return im.crop(crop_types[t])
 
