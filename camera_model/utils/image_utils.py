@@ -17,7 +17,7 @@ def transform_im(im, crop_type=None, alter_type=None, rotate_angle=None, shape=2
         'q90': lambda x: jpeg_comp(x, 90)
     }
 
-    im = crop(im, 0, 2*shape)
+    im = crop(im, 0, 512)
 
     if rotate_angle > 0:
         im = rotate(im, rotate_angle)
@@ -25,9 +25,48 @@ def transform_im(im, crop_type=None, alter_type=None, rotate_angle=None, shape=2
     im = alter_types.get(alter_type, lambda x: x)(im)
 
     if crop_type is not None:
-        im = crop(im, crop_type, shape)
+        im = find_best_crop(im, shape)
+
+    w, h = im.size
+    assert w == shape, '{} != {}'.format(w, shape)
+    assert h == shape, '{} != {}'.format(h, shape)
 
     return im
+
+
+def find_best_crop(im, shape):
+    best_crop = None
+    best_q = 0
+    for i in range(10):
+        crop_image = im.crop(random_crop(im.size[0], im.size[1], shape))
+        q = crop_quality(crop_image)
+        if q > 0.65:
+            best_crop = crop_image
+            break
+        elif q > best_q:
+            best_crop = crop_image
+            best_q = q
+    return best_crop
+
+
+def random_crop(w, h, size):
+    x_margin = min(round(np.random.rand() * w), w - size)
+    y_margin = min(round(np.random.rand() * h), h - size)
+    return x_margin, y_margin, x_margin + size, y_margin + size
+
+
+def crop_quality(im):
+    img = np.array(im)
+    img = img / 255.0
+    a = 0.7
+    b = 4
+    y = np.log(0.01)
+    q = 0
+    for i in range(3):
+        m = np.mean(img[:, :, i])
+        std = np.std(img[:, :, i])
+        q += a*b*(m - np.power(m, 2)) + (1 - a)*(1 - np.power(np.e, y*std))
+    return q / 3.
 
 
 def read_and_resize(f_path):
@@ -44,6 +83,14 @@ def read_and_crop(f_path, crop_type=None, shape=None):
         im = crop(im, crop_type, shape)
 
     im_array = np.array(im, dtype="uint8")
+    return im_array / 255.0
+
+
+def read_prediction_crop(f_path, shape):
+    im = Image.open(f_path)
+    im = crop(im, 0, 512)
+    im_crop = find_best_crop(im, shape)
+    im_array = np.array(im_crop, dtype="uint8")
     return im_array / 255.0
 
 

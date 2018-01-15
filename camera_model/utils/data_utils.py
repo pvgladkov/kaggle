@@ -7,19 +7,20 @@ from keras.utils import Sequence
 import random
 from sklearn.model_selection import train_test_split
 
-from image_utils import transform_im, read_and_crop, crop
+from image_utils import transform_im, read_prediction_crop, read_and_crop
 
 
 def image_augmentations(path, label, shape):
     _X = []
     _y = []
     with Image.open(path) as img:
-        _as = ['resize05', 'resize08', 'resize15', 'resize20', 'gamma08', 'gamma12', 'q70', 'q90', None]
+        _as1 = ['resize05', 'resize08', 'resize15', 'resize20', 'gamma08', 'gamma12', 'q70', 'q90']
+        _as2 = ['gamma08', 'gamma12', None]
         rotates = [90, 180, 270, 0]
         crops = [0, 1, 2, 3, 4]
-        for a_type in random.sample(_as, 8):
-            for crop_type in [0]:
-                for angle in [random.choice(rotates)]:
+        for a_type in random.sample(_as1, 1) + [None]:
+            for crop_type in random.sample(crops, 1):
+                for angle in random.sample(rotates, 1):
                     image_copy = img.copy()
                     image_copy = transform_im(image_copy, crop_type, a_type, angle, shape)
                     image_copy = np.array(image_copy)
@@ -78,7 +79,7 @@ class PredictFileSequence(Sequence):
 
     def __getitem__(self, idx):
         batch_x = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
-        return np.array([read_and_crop(p, 0, self.shape) for p in batch_x])
+        return np.array([read_prediction_crop(p, self.shape) for p in batch_x])
 
 
 def label_transform(labels):
