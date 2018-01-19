@@ -2,6 +2,7 @@
 
 import numpy as np
 import pandas as pd
+from scipy.stats.mstats import gmean
 
 from collections import Counter
 
@@ -30,7 +31,7 @@ if __name__ == '__main__':
 
     model = CNNConv10.model(len(label_index), batch_size, crop_shape)
 
-    model_version = 'cnn_conv10-20180114-1632.latest-20'
+    model_version = 'cnn_conv10-20180118-2357.latest-20'
 
     file_path = "{}/{}.hdf5".format(weights_path, model_version)
     model.load_weights(file_path)
@@ -45,16 +46,19 @@ if __name__ == '__main__':
         X_test = PredictFileSequence(test_df['path'].values, batch_size, crop_shape)
         predicts = model.predict_generator(X_test, use_multiprocessing=True, workers=10)
 
-        predicts = np.argmax(predicts, axis=1)
-        predicts = [label_index[p] for p in predicts]
-        assert test_df.shape[0] == len(predicts), '{} != {}'.format(test_df.shape[0], len(predicts))
+        # predicts = np.argmax(predicts, axis=1)
+        # predicts = [label_index[p] for p in predicts]
+        # assert test_df.shape[0] == len(predicts), '{} != {}'.format(test_df.shape[0], len(predicts))
         predictions.append(predicts)
 
     final_predicts = []
 
     for row in zip(*predictions):
-        counter = Counter(row)
-        final_predicts.append(counter.most_common(1)[0][0])
+        predicts = gmean(row, axis=0)
+        final_predicts.append(predicts)
+
+    final_predicts = np.argmax(final_predicts, axis=1)
+    final_predicts = [label_index[p] for p in final_predicts]
 
     df = pd.DataFrame(columns=['fname', 'camera'])
     df['fname'] = test_df['fname'].values

@@ -7,7 +7,7 @@ import pandas as pd
 from PIL import Image
 from settings import train_path, features_path
 import random
-from camera_model.utils.image_utils import transform_im
+from utils.image_utils import transform_im, crop
 
 logger = create_logger('alter_images')
 
@@ -17,22 +17,18 @@ def make_alter(path):
     logger.info(path)
     p = []
     _as = ['resize05', 'resize08', 'resize15', 'resize20', 'gamma08', 'gamma12', 'q70', 'q90']
-    rotates = [90, 180, 270, 0]
-    for a_type in _as:
-        for crop_type in [0, 1]:
-            angle = random.choice(rotates)
-            p.append(transform(path, crop_type, a_type, angle))
+    p.append(transform(path))
     return path, p
 
 
 def transform(path, crop_type=None, alter_type=None, rotate_angle=None):
 
-    new_path = path + '_crop{}_{}_r{}.jpg'.format(crop_type, alter_type, rotate_angle)
+    new_path = path + '_crop0.jpg'
     if os.path.exists(new_path):
         return new_path
 
     img = Image.open(path)
-    img = transform_im(img, crop_type, alter_type, rotate_angle)
+    img = crop(img, 0, 512)
     img.save(new_path)
     return new_path
 

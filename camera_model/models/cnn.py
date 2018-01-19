@@ -111,7 +111,7 @@ class CNNConv10(object):
         dense = Dense(n_class, activation=activations.softmax)(img)
 
         model = models.Model(inputs=inp, outputs=dense)
-        opt = optimizers.SGD(lr=1e-3, momentum=0.9)
+        opt = optimizers.SGD(lr=1e-6, momentum=0.9)
 
         model.compile(optimizer=opt, loss=losses.categorical_crossentropy, metrics=['acc'])
         model.summary()

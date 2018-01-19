@@ -17,8 +17,6 @@ def transform_im(im, crop_type=None, alter_type=None, rotate_angle=None, shape=2
         'q90': lambda x: jpeg_comp(x, 90)
     }
 
-    im = crop(im, 0, 512)
-
     if rotate_angle > 0:
         im = rotate(im, rotate_angle)
 

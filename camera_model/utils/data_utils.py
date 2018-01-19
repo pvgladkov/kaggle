@@ -7,26 +7,34 @@ from keras.utils import Sequence
 import random
 from sklearn.model_selection import train_test_split
 
-from image_utils import transform_im, read_prediction_crop, read_and_crop
+from image_utils import transform_im, read_prediction_crop, read_and_crop, crop
+
+
+def _augmentations(img, label, shape):
+    _X = []
+    _y = []
+    _as1 = ['resize05', 'resize08', 'resize15', 'resize20', 'gamma08', 'gamma12', 'q70', 'q90']
+    _as2 = ['gamma08', 'gamma12', None]
+    rotates = [90, 180, 270, 0]
+    crops = [0, 1, 2, 3, 4]
+
+    img = crop(img, 0, 512)
+
+    for a_type in random.sample(_as1, 2) + [None, None]:
+        for crop_type in random.sample(crops, 1):
+            for angle in random.sample(rotates, 1):
+                image_copy = img.copy()
+                image_copy = transform_im(image_copy, crop_type, a_type, angle, shape)
+                image_copy = np.array(image_copy)
+                image_copy = image_copy / 255.0
+                _X.append(image_copy)
+                _y.append(label)
+    return _X, _y
 
 
 def image_augmentations(path, label, shape):
-    _X = []
-    _y = []
     with Image.open(path) as img:
-        _as1 = ['resize05', 'resize08', 'resize15', 'resize20', 'gamma08', 'gamma12', 'q70', 'q90']
-        _as2 = ['gamma08', 'gamma12', None]
-        rotates = [90, 180, 270, 0]
-        crops = [0, 1, 2, 3, 4]
-        for a_type in random.sample(_as1, 1) + [None]:
-            for crop_type in random.sample(crops, 1):
-                for angle in random.sample(rotates, 1):
-                    image_copy = img.copy()
-                    image_copy = transform_im(image_copy, crop_type, a_type, angle, shape)
-                    image_copy = np.array(image_copy)
-                    image_copy = image_copy / 255.0
-                    _X.append(image_copy)
-                    _y.append(label)
+        _X, _y = _augmentations(img, label, shape)
     return _X, _y
 
 
@@ -45,15 +53,18 @@ class TrainFileSequence(Sequence):
         return np.array([read_and_crop(p) for p in batch_x]), np.array(batch_y)
 
 
-class TrainFileSequenceOnFly(Sequence):
+class _TrainSequenceOnFly(Sequence):
 
-    def __init__(self, paths, y_train, batch_size, shape):
-        self.x, self.y = paths, y_train
+    def __init__(self, x_train, y_train, batch_size, shape):
+        self.x, self.y = x_train, y_train
         self.batch_size = batch_size
         self.shape = shape
 
     def __len__(self):
         return math.ceil(1.0 * len(self.x) / self.batch_size)
+
+    def image_augmentations(self, x, y, shape):
+        raise NotImplementedError()
 
     def __getitem__(self, idx):
         batch_x = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
@@ -61,11 +72,23 @@ class TrainFileSequenceOnFly(Sequence):
         X = []
         y = []
         for _p, _y in zip(batch_x, batch_y):
-            _X, _y = image_augmentations(_p, _y, self.shape)
+            _X, _y = self.image_augmentations(_p, _y, self.shape)
             X += _X
             y += _y
 
         return np.array(X), np.array(y)
+
+
+class TrainFileSequenceOnFly(_TrainSequenceOnFly):
+
+    def image_augmentations(self, x, y, shape):
+        return image_augmentations(x, y, shape)
+
+
+class TrainDataSequenceOnFly(_TrainSequenceOnFly):
+
+    def image_augmentations(self, x, y, shape):
+        return _augmentations(x, y, shape)
 
 
 class PredictFileSequence(Sequence):
@@ -89,6 +112,7 @@ def label_transform(labels):
 
 
 def train_val_gen(X, y, batch_size, shape):
+
     train_train, train_validate, y_train, y_validate = train_test_split(X, y, test_size=0.1, random_state=777)
 
     X_y_train = TrainFileSequenceOnFly(train_train, y_train, batch_size, shape)
