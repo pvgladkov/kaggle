@@ -31,7 +31,7 @@ if __name__ == '__main__':
 
     model = CNNConv10.model(len(label_index), batch_size, crop_shape)
 
-    model_version = 'cnn_conv10-20180118-2357.latest-20'
+    model_version = 'cnn_conv10-20180121-1952.best'
 
     file_path = "{}/{}.hdf5".format(weights_path, model_version)
     model.load_weights(file_path)
@@ -45,10 +45,6 @@ if __name__ == '__main__':
     for i in range(20):
         X_test = PredictFileSequence(test_df['path'].values, batch_size, crop_shape)
         predicts = model.predict_generator(X_test, use_multiprocessing=True, workers=10)
-
-        # predicts = np.argmax(predicts, axis=1)
-        # predicts = [label_index[p] for p in predicts]
-        # assert test_df.shape[0] == len(predicts), '{} != {}'.format(test_df.shape[0], len(predicts))
         predictions.append(predicts)
 
     final_predicts = []

@@ -11,8 +11,8 @@ def transform_im(im, crop_type=None, alter_type=None, rotate_angle=None, shape=2
         'resize08': lambda x: resize(x, 0.8),
         'resize15': lambda x: resize(x, 1.5),
         'resize20': lambda x: resize(x, 2.0),
-        'gamma08': lambda x: gamma(x, 0.8),
-        'gamma12': lambda x: gamma(x, 1.2),
+        'gamma08': lambda x: gamma2(x, 0.8),
+        'gamma12': lambda x: gamma2(x, 1.2),
         'q70': lambda x: jpeg_comp(x, 70),
         'q90': lambda x: jpeg_comp(x, 90)
     }
@@ -107,7 +107,7 @@ def gamma(im, g):
 
 def gamma2(im, g):
     im = np.array(im)
-    return exposure.adjust_gamma(im, gamma=g)
+    return Image.fromarray(exposure.adjust_gamma(im, gamma=g))
 
 
 def crop(im, t, size):

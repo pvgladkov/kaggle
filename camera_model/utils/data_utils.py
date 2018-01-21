@@ -10,17 +10,25 @@ from sklearn.model_selection import train_test_split
 from image_utils import transform_im, read_prediction_crop, read_and_crop, crop
 
 
-def _augmentations(img, label, shape):
+def _augmentations(img, label, shape, validate=False):
     _X = []
     _y = []
     _as1 = ['resize05', 'resize08', 'resize15', 'resize20', 'gamma08', 'gamma12', 'q70', 'q90']
-    _as2 = ['gamma08', 'gamma12', None]
+    _as2 = ['gamma08', 'gamma12']
+    _as3 = ['resize05', 'resize08', 'resize15', 'resize20']
+    _as4 = ['q70', 'q90']
+    _as5 = ['resize05', 'resize08', 'resize15', 'resize20', 'gamma08', 'gamma12']
     rotates = [90, 180, 270, 0]
     crops = [0, 1, 2, 3, 4]
 
     img = crop(img, 0, 512)
 
-    for a_type in random.sample(_as1, 2) + [None, None]:
+    if validate:
+        __as = random.sample(_as1, 1) + [None]
+    else:
+        __as = random.sample(_as4, 1) + [None] + random.sample(_as2, 1) + random.sample(_as3, 1)
+
+    for a_type in __as:
         for crop_type in random.sample(crops, 1):
             for angle in random.sample(rotates, 1):
                 image_copy = img.copy()
@@ -32,9 +40,9 @@ def _augmentations(img, label, shape):
     return _X, _y
 
 
-def image_augmentations(path, label, shape):
+def image_augmentations(path, label, shape, validate=False):
     with Image.open(path) as img:
-        _X, _y = _augmentations(img, label, shape)
+        _X, _y = _augmentations(img, label, shape, validate)
     return _X, _y
 
 
@@ -85,6 +93,12 @@ class TrainFileSequenceOnFly(_TrainSequenceOnFly):
         return image_augmentations(x, y, shape)
 
 
+class ValidateFileSequenceOnFly(_TrainSequenceOnFly):
+
+    def image_augmentations(self, x, y, shape):
+        return image_augmentations(x, y, shape, validate=True)
+
+
 class TrainDataSequenceOnFly(_TrainSequenceOnFly):
 
     def image_augmentations(self, x, y, shape):
@@ -105,6 +119,13 @@ class PredictFileSequence(Sequence):
         return np.array([read_prediction_crop(p, self.shape) for p in batch_x])
 
 
+class PredictValidateFileSequence(PredictFileSequence):
+
+    def __getitem__(self, idx):
+        batch_x = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
+        return np.array([image_augmentations(p, 0, self.shape, True)[0][0] for p in batch_x])
+
+
 def label_transform(labels):
     labels = pd.get_dummies(pd.Series(labels))
     index = labels.columns.values
@@ -116,6 +137,6 @@ def train_val_gen(X, y, batch_size, shape):
     train_train, train_validate, y_train, y_validate = train_test_split(X, y, test_size=0.1, random_state=777)
 
     X_y_train = TrainFileSequenceOnFly(train_train, y_train, batch_size, shape)
-    X_y_validate = TrainFileSequenceOnFly(train_validate, y_validate, batch_size, shape)
+    X_y_validate = ValidateFileSequenceOnFly(train_validate, y_validate, batch_size, shape)
 
     return X_y_train, X_y_validate
