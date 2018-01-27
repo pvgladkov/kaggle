@@ -3,6 +3,8 @@ import StringIO
 import numpy as np
 from PIL import Image, ImageEnhance
 from skimage import exposure
+from colour_demosaicing import (mosaicing_CFA_Bayer, demosaicing_CFA_Bayer_bilinear,
+                                demosaicing_CFA_Bayer_Malvar2004, demosaicing_CFA_Bayer_Menon2007)
 
 
 def transform_im(im, crop_type=None, alter_type=None, rotate_angle=None, shape=224):
@@ -133,3 +135,9 @@ def jpeg_comp(im, q):
     img = Image.open(StringIO.StringIO(buf.getvalue()))
     buf.close()
     return img
+
+
+def demosaicing_error(im):
+    mosaic_im = mosaicing_CFA_Bayer(im)
+    demosaic_im = demosaicing_CFA_Bayer_bilinear(mosaic_im)
+    return mosaic_im - demosaic_im

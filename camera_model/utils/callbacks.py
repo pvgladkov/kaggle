@@ -1,7 +1,7 @@
 import io
 import telegram
 
-from keras.callbacks import Callback
+from keras.callbacks import Callback, ReduceLROnPlateau
 from keras.callbacks import (ModelCheckpoint, EarlyStopping, TensorBoard)
 from kaggle.utils import create_logger
 
@@ -44,5 +44,7 @@ def init_callbacks(w_file, m_name, v, telegram_bot_api_key, chat_it, log_path, b
     checkpoint = ModelCheckpoint(w_file, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
     _name = '{}-{}'.format(m_name, v)
     telegram_monitor = TelegramMonitor(api_token=telegram_bot_api_key, chat_id=chat_it, model_name=_name)
-    # board = TensorBoard(log_dir=log_path, batch_size=batch_size, write_grads=False, histogram_freq=1)
-    return [checkpoint, telegram_monitor]
+    monitor = 'val_acc'
+    reduce_lr = ReduceLROnPlateau(monitor=monitor, factor=0.5, patience=10, min_lr=1e-9, epsilon=0.00001, verbose=1,
+                                  mode='max')
+    return [checkpoint, telegram_monitor, reduce_lr]
