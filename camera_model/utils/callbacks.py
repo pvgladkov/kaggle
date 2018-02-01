@@ -44,7 +44,6 @@ def init_callbacks(w_file, m_name, v, telegram_bot_api_key, chat_it, log_path, b
     checkpoint = ModelCheckpoint(w_file, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
     _name = '{}-{}'.format(m_name, v)
     telegram_monitor = TelegramMonitor(api_token=telegram_bot_api_key, chat_id=chat_it, model_name=_name)
-    monitor = 'val_acc'
-    reduce_lr = ReduceLROnPlateau(monitor=monitor, factor=0.5, patience=10, min_lr=1e-9, epsilon=0.00001, verbose=1,
-                                  mode='max')
+    reduce_lr = ReduceLROnPlateau(monitor='acc', factor=0.5, patience=10, min_lr=1e-9, epsilon=0.00001, verbose=1,
+                                  mode='auto')
     return [checkpoint, telegram_monitor, reduce_lr]

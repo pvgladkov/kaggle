@@ -6,8 +6,10 @@ from PIL import Image
 from keras.utils import Sequence
 import random
 from sklearn.model_selection import train_test_split
+from kaggle.utils import create_logger
+from image_utils import transform_im, read_prediction_crop, read_and_crop, crop, demosaicing_error
 
-from image_utils import transform_im, read_prediction_crop, read_and_crop, crop
+logger = create_logger('data_utils')
 
 
 def _augmentations(img, label, shape, validate=False):
@@ -24,13 +26,13 @@ def _augmentations(img, label, shape, validate=False):
     img = crop(img, 0, 512)
 
     if validate:
-        __as = random.sample(_as1, 1) + [None]
+        __as = random.sample(_as1, 1) + [None, None]
     else:
-        __as = random.sample(_as4, 1) + [None] + random.sample(_as2, 1) + random.sample(_as3, 1)
+        __as = random.sample(_as1, 1) + [None, None]
 
     for a_type in __as:
         for crop_type in random.sample(crops, 1):
-            for angle in random.sample(rotates, 1):
+            for angle in random.sample(rotates, 2):
                 image_copy = img.copy()
                 image_copy = transform_im(image_copy, crop_type, a_type, angle, shape)
                 image_copy = np.array(image_copy)
@@ -40,9 +42,26 @@ def _augmentations(img, label, shape, validate=False):
     return _X, _y
 
 
+def _demosaicing_errors(img, label):
+    img = crop(img, 0, 512)
+    error = demosaicing_error(img) / 255.0
+    assert error.shape == (512, 512, 3)
+    return [error], [label]
+
+
 def image_augmentations(path, label, shape, validate=False):
     with Image.open(path) as img:
-        _X, _y = _augmentations(img, label, shape, validate)
+        try:
+            _X, _y = _augmentations(img, label, shape, validate)
+        except Exception as e:
+            logger.info(path)
+            _X, _y = None, None
+    return _X, _y
+
+
+def image_errors(path, label, shape, validate=False):
+    with Image.open(path) as img:
+        _X, _y = _demosaicing_errors(img, label)
     return _X, _y
 
 
@@ -81,8 +100,9 @@ class _TrainSequenceOnFly(Sequence):
         y = []
         for _p, _y in zip(batch_x, batch_y):
             _X, _y = self.image_augmentations(_p, _y, self.shape)
-            X += _X
-            y += _y
+            if _X is not None:
+                X += _X
+                y += _y
 
         return np.array(X), np.array(y)
 
@@ -133,8 +153,12 @@ def label_transform(labels):
 
 
 def train_val_gen(X, y, batch_size, shape):
+    train_train, train_validate, y_train, y_validate = X[:-275], X[-275:], y[:-275], y[-275:]
 
-    train_train, train_validate, y_train, y_validate = train_test_split(X, y, test_size=0.1, random_state=777)
+    # assert train_train.shape == (9175, )
+    # assert train_validate.shape == (275, )
+    # assert y_train.shape == (9175, 10)
+    # assert y_validate.shape == (275, 10)
 
     X_y_train = TrainFileSequenceOnFly(train_train, y_train, batch_size, shape)
     X_y_validate = ValidateFileSequenceOnFly(train_validate, y_validate, batch_size, shape)

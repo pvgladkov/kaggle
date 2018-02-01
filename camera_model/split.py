@@ -15,7 +15,7 @@ if __name__ == '__main__':
     train_train, train_validate, _, _ = train_test_split(train['path'].values, train['camera'].values,
                                                          test_size=0.1, random_state=777)
 
-    print train_train[:10]
+    print train_validate[:10]
 
     # train_train.to_csv('train.csv', index=False)
     # train_validate.to_csv('validate.csv', index=False)
