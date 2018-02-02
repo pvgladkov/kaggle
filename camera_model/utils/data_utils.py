@@ -12,7 +12,7 @@ from image_utils import transform_im, read_prediction_crop, read_and_crop, crop,
 logger = create_logger('data_utils')
 
 
-def _augmentations(img, label, shape, validate=False):
+def _augmentations(img, label, shape, validate=False, mosaic=False):
     _X = []
     _y = []
     _as1 = ['resize05', 'resize08', 'resize15', 'resize20', 'gamma08', 'gamma12', 'q70', 'q90']
@@ -35,24 +35,27 @@ def _augmentations(img, label, shape, validate=False):
             for angle in random.sample(rotates, 2):
                 image_copy = img.copy()
                 image_copy = transform_im(image_copy, crop_type, a_type, angle, shape)
-                image_copy = np.array(image_copy)
-                image_copy = image_copy / 255.0
-                _X.append(image_copy)
+
+                if mosaic:
+                    error = ((demosaicing_error(image_copy) / 2.0) > 3).astype(np.int)
+                    _X.append(error)
+                else:
+                    image_copy = np.array(image_copy)
+                    image_copy = image_copy / 255.0
+                    _X.append(image_copy)
                 _y.append(label)
     return _X, _y
 
 
 def _demosaicing_errors(img, label):
-    img = crop(img, 0, 512)
-    error = demosaicing_error(img) / 255.0
-    assert error.shape == (512, 512, 3)
+    error = ((demosaicing_error(img) / 2.0) > 3).astype(np.int)
     return [error], [label]
 
 
 def image_augmentations(path, label, shape, validate=False):
     with Image.open(path) as img:
         try:
-            _X, _y = _augmentations(img, label, shape, validate)
+            _X, _y = _augmentations(img, label, shape, validate, True)
         except Exception as e:
             logger.info(path)
             _X, _y = None, None
@@ -61,7 +64,10 @@ def image_augmentations(path, label, shape, validate=False):
 
 def image_errors(path, label, shape, validate=False):
     with Image.open(path) as img:
-        _X, _y = _demosaicing_errors(img, label)
+        try:
+            _X, _y = _demosaicing_errors(img, label)
+        except Exception as e:
+            _X, _y = None, None
     return _X, _y
 
 

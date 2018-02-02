@@ -31,12 +31,12 @@ if __name__ == '__main__':
 
     model = CNNConv10.model(len(label_index), batch_size, crop_shape)
 
-    model_version = 'cnn_conv10-20180121-1952.best'
+    model_version = 'cnn_conv10-20180129-2308.best'
 
     file_path = "{}/{}.hdf5".format(weights_path, model_version)
     model.load_weights(file_path)
 
-    s_name = '{}/submission-{}.csv'.format(submissions_path, model_version)
+    s_name = '{}/submission-{}-gmean.csv'.format(submissions_path, model_version)
 
     test_df = get_test_df(test_path)
 
