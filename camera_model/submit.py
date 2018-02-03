@@ -4,13 +4,12 @@ import numpy as np
 import pandas as pd
 from scipy.stats.mstats import gmean
 
-from collections import Counter
-
-from utils.data_utils import label_transform, PredictFileSequence
+from utils.data_utils import label_transform
+from camera_model.models.cnn4 import PredictFileSequence, CNNConv10
 from settings import train_path, test_path, submissions_path, weights_path
 from utils.file_utils import get_train_df, get_test_df
-from models import CNN1, CNNConv4, CNNConv10
 from kaggle.utils import create_logger
+from settings import home_path
 
 from PIL import Image
 
@@ -21,9 +20,9 @@ logger = create_logger('submit')
 if __name__ == '__main__':
 
     batch_size = 16
-    crop_shape = 64
+    crop_shape = 224
 
-    train_df = get_train_df(train_path, use_crop=False, use_original=True)
+    train_df = pd.read_csv(home_path + '/train_data.csv')
     logger.info('train.shape={}'.format(train_df.shape))
 
     y, label_index = label_transform(train_df['camera'].values)
@@ -31,7 +30,7 @@ if __name__ == '__main__':
 
     model = CNNConv10.model(len(label_index), batch_size, crop_shape)
 
-    model_version = 'cnn_conv10-20180129-2308.best'
+    model_version = 'cnn4.cnn_conv10-20180205-2140.latest-460'
 
     file_path = "{}/{}.hdf5".format(weights_path, model_version)
     model.load_weights(file_path)

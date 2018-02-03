@@ -137,7 +137,14 @@ def jpeg_comp(im, q):
     return img
 
 
-def demosaicing_error(im):
+def demosaicing_error(im, mtype='bilinear'):
+
+    types = {
+        'bilinear': demosaicing_CFA_Bayer_bilinear,
+        'malvar': demosaicing_CFA_Bayer_Malvar2004,
+        'menon': demosaicing_CFA_Bayer_Menon2007
+    }
+
     mosaic_im = mosaicing_CFA_Bayer(im)
-    demosaic_im = demosaicing_CFA_Bayer_bilinear(mosaic_im)
-    return mosaic_im - demosaic_im
+    demosaic_im = types[mtype](mosaic_im)
+    return im - demosaic_im

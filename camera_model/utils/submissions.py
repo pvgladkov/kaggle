@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 
 from file_utils import get_test_df
-from data_utils import PredictFileSequence
+from camera_model.models.cnn1.data_provider import PredictFileSequence
 
 
 def make_prediction(model, label_index, s_name, batch_size, crop_shape, test_path):
