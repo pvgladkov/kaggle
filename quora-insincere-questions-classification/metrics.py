@@ -1,4 +1,6 @@
+import numpy as np
 from keras import backend as K
+from sklearn import metrics
 
 
 def precision(y_true, y_pred):
@@ -29,3 +31,15 @@ def fbeta_score(y_true, y_pred, beta=1):
 
 def fmeasure(y_true, y_pred):
     return fbeta_score(y_true, y_pred, beta=1)
+
+
+def fmeasure_th(y_true, y_pred):
+    best_thresh = 0.5
+    best_score = 0.0
+    for thresh in np.arange(0.1, 0.501, 0.01):
+        thresh = np.round(thresh, 2)
+        score = metrics.f1_score(y_true, (y_pred > thresh).astype(int))
+        if score > best_score:
+            best_thresh = thresh
+            best_score = score
+    return best_score, best_thresh

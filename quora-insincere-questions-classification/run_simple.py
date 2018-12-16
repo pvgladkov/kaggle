@@ -3,7 +3,7 @@ import pandas as pd
 import math
 from sklearn.model_selection import train_test_split
 from models import lstm_model
-from embeddings import glove_embedding
+from embeddings import _embedding
 
 
 def text_to_array(text):
@@ -43,7 +43,7 @@ if __name__ == '__main__':
 
     print('train.shape={}, val.shape={}'.format(train_df.shape, val_df.shape))
 
-    embeddings_index = glove_embedding(data_path + '/glove.840B.300d/glove.840B.300d.txt')
+    embeddings_index = _embedding(data_path + '/glove.840B.300d/glove.840B.300d.txt')
     print('Found %s word vectors.' % len(embeddings_index))
 
     val_vects = np.array([text_to_array(X_text) for X_text in val_df["question_text"]])
