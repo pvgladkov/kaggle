@@ -35,3 +35,27 @@ def get_embedding_matrix_fasttext(data_path, embed_size):
 def get_embedding_matrix_para(data_path, embed_size):
     embeddings_index = _embedding(data_path + '/paragram_300_sl999/paragram_300_sl999.txt')
     return _transform(embeddings_index, embed_size)
+
+
+def get_embedding_matrices(data_path, embed_size):
+
+    def st(_index):
+        all_embs = np.stack(embeddings_index_1.values())
+        return all_embs.mean(), all_embs.std()
+
+    embeddings_index_1 = _embedding(data_path + '/glove.840B.300d/glove.840B.300d.txt')
+    embeddings_index_2 = _embedding(data_path + '/wiki-news-300d-1M/wiki-news-300d-1M.vec')
+    embeddings_index_3 = _embedding(data_path + '/paragram_300_sl999/paragram_300_sl999.txt')
+    all_words = set(embeddings_index_1.keys()) | set(embeddings_index_2.keys()) | set(embeddings_index_3.keys())
+    index = {w: i for i, w in enumerate(all_words)}
+
+    matrix_1 = defaultdict(lambda: np.zeros(embed_size, dtype='float32'))
+    matrix_1.update({i: embeddings_index_1.get(w, np.zeros(embed_size, dtype='float32')) for w, i in index.items()})
+
+    matrix_2 = defaultdict(lambda: np.zeros(embed_size, dtype='float32'))
+    matrix_2.update({i: embeddings_index_2.get(w, np.zeros(embed_size, dtype='float32')) for w, i in index.items()})
+
+    matrix_3 = defaultdict(lambda: np.zeros(embed_size, dtype='float32'))
+    matrix_3.update({i: embeddings_index_3.get(w, np.zeros(embed_size, dtype='float32')) for w, i in index.items()})
+
+    return matrix_1, matrix_2, matrix_3, index
