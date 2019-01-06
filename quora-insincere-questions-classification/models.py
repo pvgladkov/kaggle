@@ -51,11 +51,47 @@ def lstm_model_dme(max_len, embedding_size):
     inp = add([att_x_1, att_x_2, att_x_3])
 
     x = Bidirectional(LSTM(128, return_sequences=True))(inp)
-    x = Bidirectional(LSTM(64, return_sequences=False))(x)
+    x = Bidirectional(LSTM(64, return_sequences=True))(x)
+    x = Attention(max_len)(x)
     x = Dense(64, activation="relu")(x)
     x = Dropout(rate=0.1)(x)
     x = Dense(1, activation="sigmoid")(x)
     model = Model(inputs=[inp_1, inp_2, inp_3], outputs=x)
+    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+    return model
+
+
+def lstm_model_dme_4(max_len, embedding_size):
+    inp_1 = Input(shape=(max_len, embedding_size))
+    inp_2 = Input(shape=(max_len, embedding_size))
+    inp_3 = Input(shape=(max_len, embedding_size))
+    inp_4 = Input(shape=(max_len, embedding_size))
+
+    x_1 = Dense(256)(inp_1)
+    x_2 = Dense(256)(inp_2)
+    x_3 = Dense(256)(inp_3)
+    x_4 = Dense(256)(inp_4)
+
+    att_1 = Attention(max_len)(x_1)
+    att_2 = Attention(max_len)(x_2)
+    att_3 = Attention(max_len)(x_3)
+    att_4 = Attention(max_len)(x_4)
+
+    att_x_1 = multiply([x_1, att_1])
+    att_x_2 = multiply([x_2, att_2])
+    att_x_3 = multiply([x_3, att_3])
+    att_x_4 = multiply([x_4, att_4])
+
+    inp = add([att_x_1, att_x_2, att_x_3, att_x_4])
+
+    x = Bidirectional(LSTM(128, return_sequences=True))(inp)
+    x = Bidirectional(LSTM(64, return_sequences=True))(x)
+    x = Attention(max_len)(x)
+    x = Dense(64, activation="relu")(x)
+    x = Dropout(rate=0.1)(x)
+    x = Dense(1, activation="sigmoid")(x)
+    model = Model(inputs=[inp_1, inp_2, inp_3, inp_4], outputs=x)
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
     return model
