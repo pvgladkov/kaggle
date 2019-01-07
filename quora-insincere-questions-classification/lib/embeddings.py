@@ -2,6 +2,7 @@ import numpy as np
 import io
 import re
 from collections import defaultdict
+import copy
 
 from gensim.models import KeyedVectors
 
@@ -83,20 +84,27 @@ def get_embedding_matrices_normalized(data_path, embed_size, index=None):
 
 def get_embedding_matrices_normalized_4(data_path, embed_size, index):
 
-    embeddings_index_1 = _embedding(data_path + '/glove.840B.300d/glove.840B.300d.txt')
-    embeddings_index_2 = _embedding(data_path + '/wiki-news-300d-1M/wiki-news-300d-1M.vec')
-    embeddings_index_3 = _embedding(data_path + '/paragram_300_sl999/paragram_300_sl999.txt')
+    embeddings_index_1 = _embedding(data_path + '/embeddings/glove.840B.300d/glove.840B.300d.txt')
+    matrix_1 = t(embeddings_index_1, index, embed_size)
+    del embeddings_index_1
 
-    _path = data_path + '/GoogleNews-vectors-negative300/GoogleNews-vectors-negative300.bin'
+    embeddings_index_2 = _embedding(data_path + '/embeddings/wiki-news-300d-1M/wiki-news-300d-1M.vec')
+    matrix_2 = t(embeddings_index_2, index, embed_size)
+    del embeddings_index_2
+
+    embeddings_index_3 = _embedding(data_path + '/embeddings/paragram_300_sl999/paragram_300_sl999.txt')
+    matrix_3 = t(embeddings_index_3, index, embed_size)
+    del embeddings_index_3
+
+    _path = data_path + '/embeddings/GoogleNews-vectors-negative300/GoogleNews-vectors-negative300.bin'
     embeddings_index_4_w2v = KeyedVectors.load_word2vec_format(_path, binary=True)
     embeddings_index_4 = {}
     for word in embeddings_index_4_w2v.index2word:
-        embeddings_index_4[word] = embeddings_index_4_w2v[word]
-
-    matrix_1 = t(embeddings_index_1, index, embed_size)
-    matrix_2 = t(embeddings_index_2, index, embed_size)
-    matrix_3 = t(embeddings_index_3, index, embed_size)
+        if word in index:
+            embeddings_index_4[word] = copy.copy(embeddings_index_4_w2v[word])
+    del embeddings_index_4_w2v
     matrix_4 = t(embeddings_index_4, index, embed_size)
+    del embeddings_index_4
 
     return matrix_1, matrix_2, matrix_3, matrix_4, index
 
@@ -104,7 +112,7 @@ def get_embedding_matrices_normalized_4(data_path, embed_size, index):
 def t(e_matrix, vocab2idx, embed_size):
     all_e = np.stack(e_matrix.values())
     emb_mean, emb_std = all_e.mean(), all_e.std()
-
+    del all_e
     m = np.random.normal(emb_mean, emb_std, (len(vocab2idx) + 1, embed_size))
     indices_to_normalize = []
     indices_to_zero = []

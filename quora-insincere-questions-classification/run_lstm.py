@@ -2,15 +2,15 @@ import numpy as np
 import pandas as pd
 import math
 from sklearn.model_selection import train_test_split
-from models import lstm_model2, lstm_model_dme, lstm_model_dme_4
-from embeddings import (get_embedding_matrices, get_embedding_matrices_normalized, clean_text,
+from lib.models import lstm_model2, lstm_model_dme, lstm_model_dme_4
+from lib.embeddings import (get_embedding_matrices, get_embedding_matrices_normalized, clean_text,
                          clean_numbers, replace_typical_misspell, get_embedding_matrices_normalized_4)
 
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
 from keras.utils import Sequence
 from keras.callbacks import Callback, TensorBoard, ReduceLROnPlateau
-from metrics import fmeasure_th
+from lib.metrics import fmeasure_th
 
 embed_size = 300
 max_len = 30
@@ -116,7 +116,7 @@ if __name__ == '__main__':
     val_X = val_df["question_text"].fillna("_##_").values
     test_X = test_df["question_text"].fillna("_##_").values
 
-    tokenizer = Tokenizer()
+    tokenizer = Tokenizer(num_words=95000)
     tokenizer.fit_on_texts(list(train_X) + list(val_X) + list(test_X))
 
     print('load embeddings')
@@ -159,11 +159,18 @@ if __name__ == '__main__':
         return [F1ScoreCallback(val_generator, val_y), tb, reduce_lr]
 
     model.summary()
-    model.fit_generator(train_generator, epochs=2, steps_per_epoch=len(train_generator),
+    model.fit_generator(train_generator, epochs=1, steps_per_epoch=len(train_generator),
                         validation_data=val_generator, validation_steps=len(val_generator), verbose=True,
                         callbacks=init_callbacks())
 
     y_pred = model.predict_generator(val_generator, steps=len(val_generator))
+
+    # debug
+    val_debug = {'txt': val_df["question_text"].fillna("_##_").values.ravel(),
+                 'pred': y_pred.ravel(), 'target': val_y.ravel()}
+    pd.DataFrame(val_debug).to_csv('val_debug.csv', index=False)
+    # end debug
+
     score, thresh = fmeasure_th(val_y, y_pred)
     print('\nf1 best_score={}, best_thresh={} \n'.format(score, thresh))
 

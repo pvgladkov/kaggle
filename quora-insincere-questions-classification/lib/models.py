@@ -1,6 +1,6 @@
 from keras.models import Sequential, Model
 from keras.layers import Dense, Bidirectional, LSTM, Input, Embedding, Dropout, add, multiply
-from layers import Attention
+from lib.layers import Attention
 
 
 def lstm_model(max_len, embedding_size):
@@ -95,3 +95,8 @@ def lstm_model_dme_4(max_len, embedding_size):
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
     return model
+
+
+def lstm_auto_encoder(max_len, embedding_size, max_features, embedding_matrix):
+    inp_1 = Input(shape=(max_len,))
+    x = Embedding(max_features, embedding_size, weights=[embedding_matrix], trainable=False)(inp_1)
